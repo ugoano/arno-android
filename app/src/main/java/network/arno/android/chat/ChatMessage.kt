@@ -9,6 +9,8 @@ data class ChatMessage(
     val toolInput: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val viaVoice: Boolean = false,
+    val imageIds: List<String> = emptyList(),
+    val localImageUris: List<String> = emptyList(),
 ) {
     enum class Role { USER, ASSISTANT, SYSTEM, TOOL }
 }

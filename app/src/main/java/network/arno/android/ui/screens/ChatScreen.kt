@@ -1,5 +1,7 @@
 package network.arno.android.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +22,14 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
+    val attachments by viewModel.attachments.collectAsState()
     val listState = rememberLazyListState()
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents(),
+    ) { uris ->
+        uris.forEach { uri -> viewModel.addAttachment(uri) }
+    }
 
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
@@ -47,6 +56,9 @@ fun ChatScreen(
             onCancel = viewModel::cancelTask,
             isProcessing = isProcessing,
             onRequestMicPermission = onRequestMicPermission,
+            attachments = attachments,
+            onAttachClick = { filePickerLauncher.launch("image/*") },
+            onRemoveAttachment = { uri -> viewModel.removeAttachment(uri) },
         )
     }
 }

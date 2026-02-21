@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
                             chatRepository = repo,
                             settingsRepository = app.container.settingsRepository,
                             commandExecutor = cmdExec,
+                            attachmentManager = app.container.attachmentManager,
+                            tasksRepository = app.container.tasksRepository,
+                            sessionsRepository = app.container.sessionsRepository,
                             onRequestMicPermission = {
                                 micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             },

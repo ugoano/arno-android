@@ -20,11 +20,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import network.arno.android.chat.AttachmentManager
 import network.arno.android.chat.ChatRepository
 import network.arno.android.chat.ChatViewModel
 import network.arno.android.command.CommandExecutor
+import network.arno.android.sessions.SessionsRepository
+import network.arno.android.sessions.SessionsViewModel
 import network.arno.android.settings.SettingsRepository
 import network.arno.android.settings.SettingsViewModel
+import network.arno.android.tasks.TasksRepository
+import network.arno.android.tasks.TasksViewModel
 import network.arno.android.transport.ArnoWebSocket
 
 private enum class TopLevelRoute(
@@ -45,19 +50,32 @@ fun ArnoApp(
     chatRepository: ChatRepository,
     settingsRepository: SettingsRepository,
     commandExecutor: CommandExecutor,
+    attachmentManager: AttachmentManager,
+    tasksRepository: TasksRepository,
+    sessionsRepository: SessionsRepository,
     onRequestMicPermission: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val chatViewModel: ChatViewModel = viewModel(
-        factory = ChatViewModel.Factory(webSocket, chatRepository)
+        factory = ChatViewModel.Factory(webSocket, chatRepository, attachmentManager, settingsRepository)
     )
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.Factory(settingsRepository)
+    )
+    val tasksViewModel: TasksViewModel = viewModel(
+        factory = TasksViewModel.Factory(tasksRepository)
+    )
+    val sessionsViewModel: SessionsViewModel = viewModel(
+        factory = SessionsViewModel.Factory(sessionsRepository, webSocket)
     )
     val connectionState by webSocket.connectionState.collectAsState()
     val speechEnabled by settingsViewModel.speechEnabled.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Badge: count of pending + running tasks
+    val tasksSummary by tasksViewModel.summary.collectAsState()
+    val queueCount = tasksSummary?.let { it.pending + it.queued + it.running } ?: 0
 
     val topLevelRoutes = TopLevelRoute.entries
     val showBottomBar = currentRoute in topLevelRoutes.map { it.route }
@@ -110,10 +128,21 @@ fun ArnoApp(
                                 }
                             },
                             icon = {
-                                Icon(
-                                    imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                                    contentDescription = destination.label,
-                                )
+                                if (destination == TopLevelRoute.Tasks && queueCount > 0) {
+                                    BadgedBox(badge = {
+                                        Badge { Text(queueCount.toString()) }
+                                    }) {
+                                        Icon(
+                                            imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                                            contentDescription = destination.label,
+                                        )
+                                    }
+                                } else {
+                                    Icon(
+                                        imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                                        contentDescription = destination.label,
+                                    )
+                                }
                             },
                             label = { Text(destination.label) },
                             colors = NavigationBarItemDefaults.colors(
@@ -141,10 +170,10 @@ fun ArnoApp(
                 )
             }
             composable("sessions") {
-                SessionsScreen()
+                SessionsScreen(viewModel = sessionsViewModel)
             }
             composable("tasks") {
-                TasksScreen()
+                TasksScreen(viewModel = tasksViewModel)
             }
             composable("settings") {
                 SettingsScreen(

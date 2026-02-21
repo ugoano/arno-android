@@ -89,11 +89,12 @@ class ArnoWebSocket(
         _connectionState.value = ConnectionState.Disconnected
     }
 
-    fun sendMessage(text: String, viaVoice: Boolean = false) {
+    fun sendMessage(text: String, viaVoice: Boolean = false, imageIds: List<String> = emptyList()) {
         val msg = ChatMessage(
             content = text,
             clientId = clientId,
             viaVoice = viaVoice,
+            imageIds = imageIds,
         )
         send(json.encodeToString(msg))
     }

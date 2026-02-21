@@ -11,10 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 import io.noties.markwon.Markwon
 import network.arno.android.chat.ChatMessage
 import network.arno.android.ui.theme.*
@@ -59,6 +62,14 @@ fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
                     )
                 }
 
+                // Display image attachments
+                if (message.localImageUris.isNotEmpty()) {
+                    MessageImageGrid(uris = message.localImageUris)
+                    if (message.content.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
                 if (isSystem) {
                     Text(
                         text = message.content,
@@ -78,6 +89,43 @@ fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = ArnoAccent,
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageImageGrid(uris: List<String>) {
+    val imageShape = RoundedCornerShape(8.dp)
+    if (uris.size == 1) {
+        AsyncImage(
+            model = uris.first(),
+            contentDescription = "Attached image",
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(imageShape),
+        )
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            uris.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { uri ->
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = "Attached image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(imageShape),
+                        )
+                    }
+                    // Fill empty space if odd number
+                    if (row.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }

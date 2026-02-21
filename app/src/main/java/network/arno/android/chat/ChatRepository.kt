@@ -1,16 +1,30 @@
 package network.arno.android.chat
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
+import network.arno.android.data.local.dao.MessageDao
+import network.arno.android.data.local.dao.SessionDao
+import network.arno.android.data.local.entity.MessageEntity
+import network.arno.android.data.local.entity.SessionEntity
+import network.arno.android.tasks.TasksRepository
 import network.arno.android.transport.IncomingMessage
 
-class ChatRepository {
+class ChatRepository(
+    private val tasksRepository: TasksRepository,
+    private val messageDao: MessageDao,
+    private val sessionDao: SessionDao,
+    private val scope: CoroutineScope,
+) {
 
     companion object {
         private const val TAG = "ChatRepository"
+        private const val MAX_SESSIONS = 20
+        private const val SESSION_TTL_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
     }
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -19,9 +33,31 @@ class ChatRepository {
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing
 
-    fun addUserMessage(text: String, viaVoice: Boolean = false) {
-        _messages.update { it + ChatMessage(role = ChatMessage.Role.USER, content = text, viaVoice = viaVoice) }
+    private var currentSessionId: String = java.util.UUID.randomUUID().toString()
+
+    init {
+        scope.launch {
+            pruneOldSessions()
+            loadOrCreateSession()
+        }
+    }
+
+    fun addUserMessage(
+        text: String,
+        viaVoice: Boolean = false,
+        imageIds: List<String> = emptyList(),
+        localImageUris: List<String> = emptyList(),
+    ) {
+        val message = ChatMessage(
+            role = ChatMessage.Role.USER,
+            content = text,
+            viaVoice = viaVoice,
+            imageIds = imageIds,
+            localImageUris = localImageUris,
+        )
+        _messages.update { it + message }
         _isProcessing.value = true
+        persistMessage(message)
     }
 
     fun handleIncoming(msg: IncomingMessage) {
@@ -117,6 +153,7 @@ class ChatRepository {
                     }
                 }
                 _isProcessing.value = false
+                persistAllMessages()
             }
 
             // Bridge confirms task was cancelled
@@ -141,6 +178,7 @@ class ChatRepository {
                     }
                 }
                 _isProcessing.value = false
+                persistAllMessages()
                 Log.i(TAG, "Task cancelled")
             }
 
@@ -165,8 +203,13 @@ class ChatRepository {
                 _isProcessing.value = false
             }
 
+            // Parse tasks_summary for the Tasks view
+            "tasks_summary" -> {
+                tasksRepository.handleTasksSummary(msg.summary)
+            }
+
             // Ignore internal bridge messages that don't need UI display
-            "task_created", "task_completed", "task_failed", "tasks_summary",
+            "task_created", "task_completed", "task_failed",
             "task_queued", "queue_task_started", "queued_task_cancelled",
             "task_progress", "replay", "chat_history", "system_message",
             "init", "raw", "auth_error", "queue_full", "cancel_queued_failed" -> {
@@ -182,5 +225,127 @@ class ChatRepository {
     fun clear() {
         _messages.value = emptyList()
         _isProcessing.value = false
+        // Start a new session
+        currentSessionId = java.util.UUID.randomUUID().toString()
+        scope.launch { loadOrCreateSession() }
+    }
+
+    fun getCurrentSessionId(): String = currentSessionId
+
+    fun loadSession(sessionId: String) {
+        currentSessionId = sessionId
+        scope.launch {
+            val entities = messageDao.getBySession(sessionId)
+            val chatMessages = entities.map { it.toChatMessage() }
+            _messages.value = chatMessages
+            _isProcessing.value = false
+            Log.i(TAG, "Loaded ${chatMessages.size} messages for session $sessionId")
+        }
+    }
+
+    suspend fun getSessions(): List<SessionEntity> {
+        return sessionDao.getAll()
+    }
+
+    suspend fun deleteSession(sessionId: String) {
+        messageDao.deleteBySession(sessionId)
+        sessionDao.delete(sessionId)
+        if (sessionId == currentSessionId) {
+            clear()
+        }
+    }
+
+    private suspend fun loadOrCreateSession() {
+        val existing = sessionDao.getById(currentSessionId)
+        if (existing != null) {
+            val entities = messageDao.getBySession(currentSessionId)
+            val chatMessages = entities.map { it.toChatMessage() }
+            _messages.value = chatMessages
+            Log.i(TAG, "Resumed session $currentSessionId with ${chatMessages.size} messages")
+        } else {
+            sessionDao.insert(SessionEntity(id = currentSessionId))
+            Log.i(TAG, "Created new session $currentSessionId")
+        }
+    }
+
+    private fun persistMessage(chatMessage: ChatMessage) {
+        scope.launch {
+            try {
+                messageDao.insert(chatMessage.toEntity(currentSessionId))
+                updateSessionMetadata()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist message", e)
+            }
+        }
+    }
+
+    private fun persistAllMessages() {
+        scope.launch {
+            try {
+                // Persist all non-streaming, non-system messages
+                val messagesToPersist = _messages.value.filter {
+                    it.role != ChatMessage.Role.SYSTEM
+                }
+                messageDao.deleteBySession(currentSessionId)
+                messageDao.insertAll(messagesToPersist.map { it.toEntity(currentSessionId) })
+                updateSessionMetadata()
+                Log.d(TAG, "Persisted ${messagesToPersist.size} messages for session $currentSessionId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist messages", e)
+            }
+        }
+    }
+
+    private suspend fun updateSessionMetadata() {
+        val messages = _messages.value
+        val preview = messages.lastOrNull { it.role == ChatMessage.Role.USER }?.content?.take(100) ?: ""
+        val title = messages.firstOrNull { it.role == ChatMessage.Role.USER }?.content?.take(50) ?: "New Chat"
+        val session = SessionEntity(
+            id = currentSessionId,
+            title = title,
+            preview = preview,
+            messageCount = messages.size,
+            lastActivity = System.currentTimeMillis(),
+            createdAt = sessionDao.getById(currentSessionId)?.createdAt ?: System.currentTimeMillis(),
+        )
+        sessionDao.insert(session) // REPLACE strategy
+    }
+
+    private suspend fun pruneOldSessions() {
+        try {
+            val cutoff = System.currentTimeMillis() - SESSION_TTL_MS
+            sessionDao.deleteOlderThan(cutoff)
+
+            val count = sessionDao.count()
+            if (count > MAX_SESSIONS) {
+                sessionDao.deleteOldest(count - MAX_SESSIONS)
+            }
+            Log.d(TAG, "Pruned old sessions, $count remaining")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to prune sessions", e)
+        }
     }
 }
+
+private fun ChatMessage.toEntity(sessionId: String) = MessageEntity(
+    id = id,
+    sessionId = sessionId,
+    role = role.name,
+    content = content,
+    toolName = toolName,
+    toolInput = toolInput,
+    isStreaming = false, // Never persist streaming state
+    viaVoice = viaVoice,
+    timestamp = timestamp,
+)
+
+private fun MessageEntity.toChatMessage() = ChatMessage(
+    id = id,
+    role = ChatMessage.Role.valueOf(role),
+    content = content,
+    toolName = toolName,
+    toolInput = toolInput,
+    isStreaming = false,
+    viaVoice = viaVoice,
+    timestamp = timestamp,
+)

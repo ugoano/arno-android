@@ -34,7 +34,8 @@ class ArnoService : Service() {
 
     private lateinit var webSocket: ArnoWebSocket
     private lateinit var commandExecutor: CommandExecutor
-    val chatRepository = ChatRepository()
+    lateinit var chatRepository: ChatRepository
+        private set
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val binder = ArnoBinder()
@@ -48,17 +49,24 @@ class ArnoService : Service() {
         Log.i(TAG, "Service created")
         createServiceChannel()
 
-        val settingsRepository = (application as ArnoApp).container.settingsRepository
+        val container = (application as ArnoApp).container
+        val settingsRepository = container.settingsRepository
+        chatRepository = ChatRepository(
+            tasksRepository = container.tasksRepository,
+            messageDao = container.database.messageDao(),
+            sessionDao = container.database.sessionDao(),
+            scope = serviceScope,
+        )
         commandExecutor = CommandExecutor(applicationContext, settingsRepository)
 
-        val serverUrl = (application as ArnoApp).container.settingsRepository.serverUrl
+        val serverUrl = container.settingsRepository.serverUrl
         webSocket = ArnoWebSocket(
             serverUrl = serverUrl,
             onCommand = { cmd -> commandExecutor.execute(cmd) },
         )
 
         // Store references in app container for ViewModel access
-        (application as ArnoApp).container.apply {
+        container.apply {
             this.webSocket = this@ArnoService.webSocket
             this.chatRepository = this@ArnoService.chatRepository
             this.commandExecutor = this@ArnoService.commandExecutor
