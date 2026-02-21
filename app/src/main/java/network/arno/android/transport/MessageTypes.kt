@@ -49,12 +49,15 @@ data class IncomingMessage(
     val type: String,
     val content: String? = null,
     val message: JsonElement? = null,
+    val delta: JsonObject? = null,
     val command: ClientCommand? = null,
     val session: String? = null,
+    @SerialName("session_id") val sessionId: String? = null,
     val tool: String? = null,
     val input: String? = null,
     val error: String? = null,
     @SerialName("client_id") val clientId: String? = null,
+    @SerialName("stop_reason") val stopReason: String? = null,
 )
 
 @Serializable

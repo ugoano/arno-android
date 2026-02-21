@@ -30,7 +30,9 @@ if [ ! -d "$ANDROID_HOME" ]; then
 fi
 
 # ── Build ────────────────────────────────────────────────────────────
-TASK="${1:-assembleDebug}"
+if [ $# -eq 0 ]; then
+    set -- assembleDebug
+fi
 
 echo "JAVA_HOME=$JAVA_HOME"
 echo "ANDROID_HOME=$ANDROID_HOME"

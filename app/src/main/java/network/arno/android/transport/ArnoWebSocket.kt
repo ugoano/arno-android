@@ -177,14 +177,18 @@ class ArnoWebSocket(
                     Log.i(TAG, "Command response sent: ${response.status}")
                 }
                 "session" -> {
-                    currentSessionId = msg.session
-                    Log.i(TAG, "Session assigned: ${msg.session}")
+                    currentSessionId = msg.sessionId
+                    Log.i(TAG, "Session assigned: ${msg.sessionId}")
                 }
                 "heartbeat_ack" -> {
                     Log.d(TAG, "Heartbeat acknowledged")
                 }
+                "client_registered" -> {
+                    Log.i(TAG, "Client registration acknowledged")
+                }
                 else -> {
                     // Forward to UI layer via shared flow
+                    // Includes: assistant, content_block_delta, result, user, system, error, etc.
                     scope.launch { _incomingMessages.emit(msg) }
                 }
             }
