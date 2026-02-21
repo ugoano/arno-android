@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import network.arno.android.tasks.TaskInfo
 import network.arno.android.tasks.TasksSummary
 import network.arno.android.tasks.TasksViewModel
+import network.arno.android.ui.theme.*
 
 @Composable
 fun TasksScreen(viewModel: TasksViewModel) {
@@ -179,9 +180,9 @@ private fun TaskCard(task: TaskInfo, isRunning: Boolean) {
             ),
             label = "pulse",
         )
-        MaterialTheme.colorScheme.secondary.copy(alpha = alpha)
+        JarvisGreen.copy(alpha = alpha)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+        JarvisBorder
     }
 
     Column(
@@ -242,13 +243,13 @@ private fun TaskCard(task: TaskInfo, isRunning: Boolean) {
 @Composable
 private fun StatusChip(status: String) {
     val (label, color) = when (status) {
-        "running" -> "Running" to MaterialTheme.colorScheme.secondary
-        "pending" -> "Pending" to MaterialTheme.colorScheme.tertiary
-        "queued" -> "Queued" to MaterialTheme.colorScheme.tertiary
-        "completed" -> "Done" to MaterialTheme.colorScheme.onSurfaceVariant
-        "failed" -> "Failed" to MaterialTheme.colorScheme.error
-        "cancelled" -> "Cancelled" to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> status.replaceFirstChar { it.uppercase() } to MaterialTheme.colorScheme.onSurfaceVariant
+        "running" -> "RUNNING" to JarvisGreen
+        "pending" -> "PENDING" to JarvisYellow
+        "queued" -> "QUEUED" to JarvisYellow
+        "completed" -> "DONE" to JarvisTextSecondary
+        "failed" -> "FAILED" to JarvisRed
+        "cancelled" -> "CANCELLED" to JarvisTextSecondary
+        else -> status.uppercase() to JarvisTextSecondary
     }
 
     Text(

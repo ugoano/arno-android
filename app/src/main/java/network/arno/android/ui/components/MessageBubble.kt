@@ -2,25 +2,33 @@ package network.arno.android.ui.components
 
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import io.noties.markwon.Markwon
 import network.arno.android.chat.ChatMessage
 import network.arno.android.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
@@ -28,68 +36,103 @@ fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
     val isTool = message.role == ChatMessage.Role.TOOL
     val isSystem = message.role == ChatMessage.Role.SYSTEM
 
-    val alignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = when {
-        isUser -> ArnoUserBubble
-        isTool -> ArnoSurfaceVariant
-        isSystem -> ArnoSurfaceVariant
-        else -> ArnoAssistantBubble
-    }
-    val shape = when {
-        isUser -> RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
-        else -> RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+    // JARVIS colour mapping (matching web client)
+    val borderColor = when (message.role) {
+        ChatMessage.Role.USER -> JarvisCyan
+        ChatMessage.Role.ASSISTANT -> JarvisGreen
+        ChatMessage.Role.TOOL -> JarvisMagenta
+        ChatMessage.Role.SYSTEM -> JarvisYellow
     }
 
-    val maxWidth = if (isUser) 0.85f else 0.95f
+    val bgTint = when (message.role) {
+        ChatMessage.Role.USER -> JarvisUserBg
+        ChatMessage.Role.ASSISTANT -> JarvisAssistantBg
+        ChatMessage.Role.TOOL -> JarvisToolBg
+        ChatMessage.Role.SYSTEM -> JarvisSystemBg
+    }
 
+    val roleBadge = when (message.role) {
+        ChatMessage.Role.USER -> "USER"
+        ChatMessage.Role.ASSISTANT -> "ARNO"
+        ChatMessage.Role.TOOL -> message.toolName?.uppercase() ?: "TOOL"
+        ChatMessage.Role.SYSTEM -> "SYSTEM"
+    }
+
+    val timestamp = remember(message.timestamp) {
+        SimpleDateFormat("HH:mm", Locale.UK).format(Date(message.timestamp))
+    }
+
+    // Log-entry style: full-width with left border
     Box(
-        contentAlignment = alignment,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .drawBehind {
+                // Left border (3dp)
+                drawRect(
+                    color = borderColor,
+                    topLeft = Offset(0f, 0f),
+                    size = size.copy(width = 3.dp.toPx()),
+                )
+            }
+            .background(bgTint, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+            .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
     ) {
-        Surface(
-            color = bubbleColor,
-            shape = shape,
-            tonalElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth(maxWidth),
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                if (isTool && message.toolName != null) {
-                    Text(
-                        text = "\uD83D\uDD27 ${message.toolName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ArnoAccent,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                }
+        Column {
+            // Header row: role badge + timestamp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = roleBadge,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                    ),
+                    color = borderColor,
+                )
+                Text(
+                    text = timestamp,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = JarvisTimestamp,
+                )
+            }
 
-                // Display image attachments
-                if (message.localImageUris.isNotEmpty()) {
-                    MessageImageGrid(uris = message.localImageUris)
-                    if (message.content.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
+            Spacer(modifier = Modifier.height(4.dp))
 
+            // Image attachments
+            if (message.localImageUris.isNotEmpty()) {
+                MessageImageGrid(uris = message.localImageUris)
+                if (message.content.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+            }
+
+            // Message content
+            if (message.content.isNotEmpty()) {
                 if (isSystem) {
                     Text(
                         text = message.content,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ArnoTextSecondary,
+                        color = JarvisTextSecondary,
                     )
-                } else if (message.content.isNotEmpty()) {
+                } else {
                     MarkdownText(
                         markdown = message.content,
-                        color = ArnoText,
+                        color = JarvisText,
                     )
                 }
+            }
 
-                if (message.isStreaming) {
-                    Text(
-                        text = "\u258C",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ArnoAccent,
-                    )
-                }
+            // Streaming cursor
+            if (message.isStreaming) {
+                Text(
+                    text = "\u258C",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = JarvisGreen,
+                )
             }
         }
     }
@@ -97,7 +140,7 @@ fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MessageImageGrid(uris: List<String>) {
-    val imageShape = RoundedCornerShape(8.dp)
+    val imageShape = RoundedCornerShape(4.dp)
     if (uris.size == 1) {
         AsyncImage(
             model = uris.first(),
@@ -122,7 +165,6 @@ private fun MessageImageGrid(uris: List<String>) {
                                 .clip(imageShape),
                         )
                     }
-                    // Fill empty space if odd number
                     if (row.size == 1) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
@@ -133,7 +175,7 @@ private fun MessageImageGrid(uris: List<String>) {
 }
 
 @Composable
-fun MarkdownText(markdown: String, color: androidx.compose.ui.graphics.Color) {
+fun MarkdownText(markdown: String, color: Color) {
     val context = LocalContext.current
     val markwon = remember { Markwon.create(context) }
     val colorArgb = color.toArgb()
@@ -142,8 +184,10 @@ fun MarkdownText(markdown: String, color: androidx.compose.ui.graphics.Color) {
         factory = { ctx ->
             TextView(ctx).apply {
                 setTextColor(colorArgb)
-                textSize = 15f
+                textSize = 13f
+                typeface = android.graphics.Typeface.MONOSPACE
                 movementMethod = LinkMovementMethod.getInstance()
+                setLineSpacing(4f, 1f)
             }
         },
         update = { textView ->

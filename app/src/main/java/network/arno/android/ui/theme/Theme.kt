@@ -9,19 +9,19 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val ArnoDarkColorScheme = darkColorScheme(
-    primary = ArnoAccent,
-    onPrimary = ArnoDark,
-    secondary = ArnoGreen,
-    tertiary = ArnoYellow,
-    background = ArnoDark,
-    surface = ArnoSurface,
-    surfaceVariant = ArnoSurfaceVariant,
-    onBackground = ArnoText,
-    onSurface = ArnoText,
-    onSurfaceVariant = ArnoTextSecondary,
-    outline = ArnoBorder,
-    error = ArnoRed,
+private val JarvisDarkColorScheme = darkColorScheme(
+    primary = JarvisCyan,
+    onPrimary = JarvisBg,
+    secondary = JarvisGreen,
+    tertiary = JarvisYellow,
+    background = JarvisBg,
+    surface = JarvisSurface,
+    surfaceVariant = JarvisSurfaceVariant,
+    onBackground = JarvisText,
+    onSurface = JarvisText,
+    onSurfaceVariant = JarvisTextSecondary,
+    outline = JarvisBorder,
+    error = JarvisRed,
 )
 
 @Composable
@@ -30,14 +30,16 @@ fun ArnoTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = ArnoDark.toArgb()
-            window.navigationBarColor = ArnoDark.toArgb()
+            @Suppress("DEPRECATION")
+            window.statusBarColor = JarvisBg.toArgb()
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = JarvisBg.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
     MaterialTheme(
-        colorScheme = ArnoDarkColorScheme,
+        colorScheme = JarvisDarkColorScheme,
         typography = ArnoTypography,
         content = content,
     )

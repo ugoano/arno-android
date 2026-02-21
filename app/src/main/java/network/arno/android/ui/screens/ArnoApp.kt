@@ -1,5 +1,9 @@
 package network.arno.android.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -14,6 +18,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import network.arno.android.ui.theme.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -92,9 +100,19 @@ fun ArnoApp(
         topBar = {
             if (currentRoute != "settings") {
                 TopAppBar(
-                    title = { Text("Arno") },
+                    title = {
+                        Text(
+                            text = "ARNO",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 3.sp,
+                            ),
+                            color = JarvisCyan,
+                        )
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = JarvisBg,
+                        actionIconContentColor = JarvisTextSecondary,
                     ),
                     actions = {
                         IconButton(onClick = {
@@ -107,10 +125,15 @@ fun ArnoApp(
                                 else
                                     Icons.AutoMirrored.Filled.VolumeOff,
                                 contentDescription = if (speechEnabled) "Mute speech" else "Unmute speech",
+                                tint = if (speechEnabled) JarvisGreen else JarvisTextSecondary,
                             )
                         }
                         IconButton(onClick = { navController.navigate("settings") }) {
-                            Text("\u2699", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                text = "\u2699",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = JarvisTextSecondary,
+                            )
                         }
                     },
                 )
@@ -119,8 +142,8 @@ fun ArnoApp(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    containerColor = JarvisBg,
+                    contentColor = JarvisText,
                 ) {
                     topLevelRoutes.forEach { destination ->
                         val selected = currentRoute == destination.route
@@ -138,7 +161,10 @@ fun ArnoApp(
                             icon = {
                                 if (destination == TopLevelRoute.Tasks && queueCount > 0) {
                                     BadgedBox(badge = {
-                                        Badge { Text(queueCount.toString()) }
+                                        Badge(
+                                            containerColor = JarvisCyan,
+                                            contentColor = JarvisBg,
+                                        ) { Text(queueCount.toString()) }
                                     }) {
                                         Icon(
                                             imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
@@ -152,13 +178,20 @@ fun ArnoApp(
                                     )
                                 }
                             },
-                            label = { Text(destination.label) },
+                            label = {
+                                Text(
+                                    text = destination.label.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        letterSpacing = 1.sp,
+                                    ),
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                                selectedIconColor = JarvisCyan,
+                                selectedTextColor = JarvisCyan,
+                                unselectedIconColor = JarvisTextSecondary,
+                                unselectedTextColor = JarvisTextSecondary,
+                                indicatorColor = JarvisSurfaceVariant,
                             ),
                         )
                     }

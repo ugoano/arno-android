@@ -9,6 +9,7 @@ import network.arno.android.settings.SettingsViewModel
 import network.arno.android.BuildConfig
 import network.arno.android.transport.ArnoWebSocket
 import network.arno.android.transport.ConnectionState
+import network.arno.android.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,12 +28,13 @@ fun SettingsScreen(
             .padding(16.dp),
     ) {
         TopAppBar(
-            title = { Text("Settings") },
+            title = { Text("SETTINGS", color = JarvisCyan) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Text("\u2190", style = MaterialTheme.typography.titleLarge)
+                    Text("\u2190", style = MaterialTheme.typography.titleLarge, color = JarvisTextSecondary)
                 }
             },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = JarvisBg),
         )
 
         Spacer(modifier = Modifier.height(16.dp))

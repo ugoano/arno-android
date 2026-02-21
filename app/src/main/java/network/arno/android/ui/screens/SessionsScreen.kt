@@ -1,7 +1,9 @@
 package network.arno.android.ui.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import network.arno.android.sessions.Session
 import network.arno.android.sessions.SessionsViewModel
+import network.arno.android.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -53,7 +56,8 @@ fun SessionsScreen(viewModel: SessionsViewModel) {
                     newSessionTitle = ""
                     showNewSessionDialog = true
                 },
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = JarvisCyan,
+                contentColor = JarvisBg,
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "New session")
             }
@@ -230,16 +234,14 @@ private fun SessionCard(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
 ) {
-    val containerColor = if (isActive) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    val containerColor = if (isActive) JarvisSurfaceVariant else JarvisSurface
+    val borderColor = if (isActive) JarvisCyan else JarvisBorder
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .animateContentSize(),
+            .animateContentSize()
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         onClick = onSwitch,
     ) {

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import network.arno.android.chat.Attachment
-import network.arno.android.ui.theme.ArnoAccent
+import network.arno.android.ui.theme.*
 
 @Composable
 fun InputBar(
@@ -55,8 +55,7 @@ fun InputBar(
     val hasContent = text.isNotBlank() || attachments.any { it.error == null }
 
     val micColour by animateColorAsState(
-        targetValue = if (isListening) MaterialTheme.colorScheme.error
-        else MaterialTheme.colorScheme.primary,
+        targetValue = if (isListening) JarvisRed else JarvisCyan,
         label = "micColour",
     )
 
@@ -132,11 +131,18 @@ fun InputBar(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp,
+        color = JarvisBg,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
+            // Top border line
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(JarvisBorder),
+            )
+
             // Attachment preview strip
             if (attachments.isNotEmpty()) {
                 AttachmentPreviewStrip(
@@ -158,20 +164,28 @@ fun InputBar(
                     Icon(
                         imageVector = Icons.Default.AttachFile,
                         contentDescription = "Attach file",
-                        tint = if (!isProcessing) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (!isProcessing) JarvisTextSecondary else JarvisBorder,
                     )
                 }
 
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text(if (isListening) "Listening..." else "Message Arno...") },
-                    shape = RoundedCornerShape(20.dp),
+                    placeholder = {
+                        Text(
+                            text = if (isListening) "LISTENING..." else "> message arno...",
+                            color = JarvisTextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    },
+                    shape = RoundedCornerShape(4.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = JarvisText),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (isListening) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedBorderColor = if (isListening) JarvisRed else JarvisCyan,
+                        unfocusedBorderColor = JarvisBorder,
+                        cursorColor = JarvisCyan,
+                        focusedContainerColor = JarvisSurface,
+                        unfocusedContainerColor = JarvisSurface,
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
@@ -195,8 +209,7 @@ fun InputBar(
                     Text(
                         text = if (isListening) "\u23F9" else "\uD83C\uDFA4",
                         style = MaterialTheme.typography.titleLarge,
-                        color = if (!isProcessing) micColour
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (!isProcessing) micColour else JarvisBorder,
                     )
                 }
 
@@ -208,7 +221,7 @@ fun InputBar(
                         Text(
                             text = "\u2715",
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error,
+                            color = JarvisRed,
                         )
                     }
                 } else {
@@ -225,10 +238,7 @@ fun InputBar(
                         Text(
                             text = "\u2191",
                             style = MaterialTheme.typography.titleLarge,
-                            color = if (hasContent)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (hasContent) JarvisCyan else JarvisBorder,
                         )
                     }
                 }
@@ -302,14 +312,14 @@ private fun AttachmentPreviewItem(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            JarvisBg.copy(alpha = 0.7f),
                             RoundedCornerShape(8.dp),
                         ),
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
-                        color = ArnoAccent,
+                        color = JarvisCyan,
                     )
                 }
             }
@@ -321,7 +331,7 @@ private fun AttachmentPreviewItem(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                            JarvisRed.copy(alpha = 0.3f),
                             RoundedCornerShape(8.dp),
                         ),
                 ) {
@@ -337,12 +347,12 @@ private fun AttachmentPreviewItem(
         Icon(
             imageVector = Icons.Default.Close,
             contentDescription = "Remove",
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = JarvisText,
             modifier = Modifier
                 .size(20.dp)
                 .align(Alignment.TopEnd)
                 .offset(x = 4.dp, y = (-4).dp)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                .background(JarvisSurface, CircleShape)
                 .clickable { onRemove() }
                 .padding(2.dp),
         )
