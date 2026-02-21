@@ -91,6 +91,7 @@ fun ArnoApp(
     val connectionState by webSocket.connectionState.collectAsState()
     val speechEnabled by settingsViewModel.speechEnabled.collectAsState()
     val voiceMode by settingsViewModel.voiceMode.collectAsState()
+    val bluetoothTriggerEnabled by settingsViewModel.bluetoothTriggerEnabled.collectAsState()
     val context = LocalContext.current
 
     // Notify the foreground service when voice mode changes
@@ -98,6 +99,15 @@ fun ArnoApp(
         val intent = Intent(context, ArnoService::class.java).apply {
             action = ArnoService.ACTION_SET_VOICE_MODE
             putExtra(ArnoService.EXTRA_VOICE_MODE, voiceMode.name)
+        }
+        context.startService(intent)
+    }
+
+    // Notify the foreground service when Bluetooth trigger toggled
+    LaunchedEffect(bluetoothTriggerEnabled) {
+        val intent = Intent(context, ArnoService::class.java).apply {
+            action = ArnoService.ACTION_SET_BT_TRIGGER
+            putExtra(ArnoService.EXTRA_BT_TRIGGER_ENABLED, bluetoothTriggerEnabled)
         }
         context.startService(intent)
     }

@@ -40,7 +40,9 @@ class ArnoService : Service() {
         const val SERVICE_CHANNEL_NAME = "Arno Connection"
         private const val NOTIFICATION_ID = 1
         const val ACTION_SET_VOICE_MODE = "network.arno.android.SET_VOICE_MODE"
+        const val ACTION_SET_BT_TRIGGER = "network.arno.android.SET_BT_TRIGGER"
         const val EXTRA_VOICE_MODE = "voice_mode"
+        const val EXTRA_BT_TRIGGER_ENABLED = "bt_trigger_enabled"
     }
 
     private lateinit var webSocket: ArnoWebSocket
@@ -121,8 +123,10 @@ class ArnoService : Service() {
             startAlwaysListening()
         }
 
-        // Set up MediaSession for Bluetooth media button interception
-        setupMediaSession()
+        // Set up MediaSession for Bluetooth media button interception (only if enabled)
+        if (settingsRepository.bluetoothTriggerEnabled) {
+            setupMediaSession()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -138,6 +142,10 @@ class ArnoService : Service() {
                     setVoiceMode(mode)
                 }
             }
+            ACTION_SET_BT_TRIGGER -> {
+                val enabled = intent.getBooleanExtra(EXTRA_BT_TRIGGER_ENABLED, false)
+                setBluetoothTrigger(enabled)
+            }
         }
         return START_STICKY
     }
@@ -149,9 +157,7 @@ class ArnoService : Service() {
         stopAlwaysListening()
         btVoiceInputManager?.destroy()
         btVoiceInputManager = null
-        mediaSession?.isActive = false
-        mediaSession?.release()
-        mediaSession = null
+        teardownMediaSession()
         btAudioFeedback.release()
         serviceScope.cancel()
         webSocket.destroy()
@@ -215,7 +221,7 @@ class ArnoService : Service() {
                     val shouldHandle = MediaButtonHandler.shouldHandle(
                         keyCode = keyEvent.keyCode,
                         action = keyEvent.action,
-                        enabled = settingsRepository.bluetoothTriggerEnabled,
+                        enabled = true, // Session only exists when enabled
                     )
 
                     if (shouldHandle) {
@@ -228,16 +234,34 @@ class ArnoService : Service() {
                 }
             })
 
-            // Set playback state so the session receives media button events
+            // Use STATE_PLAYING to win media button priority over paused media apps
             setPlaybackState(
                 PlaybackStateCompat.Builder()
                     .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PLAY_PAUSE)
-                    .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0f)
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 0f)
                     .build()
             )
 
             isActive = true
         }
+        Log.i(TAG, "MediaSession activated for Bluetooth trigger")
+    }
+
+    private fun teardownMediaSession() {
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
+        Log.i(TAG, "MediaSession deactivated")
+    }
+
+    private fun setBluetoothTrigger(enabled: Boolean) {
+        Log.i(TAG, "Bluetooth trigger ${if (enabled) "enabled" else "disabled"}")
+        if (enabled && mediaSession == null) {
+            setupMediaSession()
+        } else if (!enabled && mediaSession != null) {
+            teardownMediaSession()
+        }
+        updateNotification(buildStatusText())
     }
 
     private fun triggerBluetoothVoiceInput() {
