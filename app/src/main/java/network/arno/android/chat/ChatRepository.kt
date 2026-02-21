@@ -267,6 +267,29 @@ class ChatRepository(
         }
     }
 
+    /**
+     * Load messages from bridge REST API history response.
+     * Called when switching sessions — the bridge has the authoritative history.
+     */
+    fun loadFromHistory(sessionId: String, history: List<Pair<String, String>>) {
+        if (sessionId != currentSessionId) return // Stale response
+
+        val chatMessages = history.mapNotNull { (role, content) ->
+            val chatRole = when (role) {
+                "user" -> ChatMessage.Role.USER
+                "assistant" -> ChatMessage.Role.ASSISTANT
+                else -> return@mapNotNull null
+            }
+            ChatMessage(role = chatRole, content = content)
+        }
+
+        if (chatMessages.isNotEmpty()) {
+            _messages.value = chatMessages
+            _isProcessing.value = false
+            Log.i(TAG, "Loaded ${chatMessages.size} messages from bridge history for session $sessionId")
+        }
+    }
+
     suspend fun getSessions(): List<SessionEntity> {
         return sessionDao.getAll()
     }

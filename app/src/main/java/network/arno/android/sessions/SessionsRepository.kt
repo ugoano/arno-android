@@ -5,9 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -129,6 +127,44 @@ class SessionsRepository(
             Log.e(TAG, "Failed to update title: ${e.message}")
             _error.value = e.message
             return false
+        }
+    }
+
+    /**
+     * Fetch session history from bridge REST API.
+     * Returns list of {role, content} pairs, or empty list on failure.
+     */
+    suspend fun fetchSessionHistory(sessionId: String): List<Pair<String, String>> {
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/api/sessions/$sessionId/history")
+                .get()
+                .build()
+
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
+
+            val body = response.body?.string() ?: return emptyList()
+            if (!response.isSuccessful) {
+                Log.w(TAG, "History fetch failed: HTTP ${response.code}")
+                return emptyList()
+            }
+
+            val jsonResponse = json.parseToJsonElement(body).jsonObject
+            val messages = jsonResponse["messages"]?.jsonArray ?: return emptyList()
+
+            messages.mapNotNull { element ->
+                val obj = element.jsonObject
+                val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: ""
+                role to content
+            }.also {
+                Log.i(TAG, "Fetched ${it.size} history messages for session $sessionId")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch session history: ${e.message}")
+            emptyList()
         }
     }
 

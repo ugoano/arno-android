@@ -52,17 +52,24 @@ class SessionsViewModel(
 
         _activeSessionId.value = sessionId
 
-        // Load local Room history immediately (may be empty for remote sessions)
+        // Clear chat immediately and show empty state while loading
         chatRepository.loadSession(sessionId)
 
-        // Reconnect WebSocket targeting the new session.
-        // This sends a reconnect message to the bridge which restores session
-        // context and replays chat history (overwriting empty local state).
-        webSocket.disconnect()
-        webSocket.connectToSession(sessionId)
-
-        // Navigate back to chat tab
+        // Navigate to chat tab straight away
         onNavigateToChat()
+
+        // Fetch history from bridge REST API (authoritative source)
+        // then reconnect WebSocket for the new session
+        viewModelScope.launch {
+            val history = sessionsRepository.fetchSessionHistory(sessionId)
+            if (history.isNotEmpty()) {
+                chatRepository.loadFromHistory(sessionId, history)
+            }
+
+            // Reconnect WebSocket targeting the new session
+            webSocket.disconnect()
+            webSocket.connectToSession(sessionId)
+        }
     }
 
     fun clearError() {
