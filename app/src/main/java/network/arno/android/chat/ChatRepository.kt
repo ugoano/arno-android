@@ -121,7 +121,7 @@ class ChatRepository {
 
             // Status and error messages
             "system", "status" -> {
-                val text = msg.content ?: return
+                val text = msg.content?.jsonPrimitive?.contentOrNull ?: return
                 // Skip "Processing..." status messages to avoid clutter
                 if (text == "Processing...") return
                 _messages.update { it + ChatMessage(
@@ -130,9 +130,12 @@ class ChatRepository {
                 )}
             }
             "error", "stderr" -> {
+                val errorText = msg.content?.jsonPrimitive?.contentOrNull
+                    ?: msg.error
+                    ?: "Unknown error"
                 _messages.update { it + ChatMessage(
                     role = ChatMessage.Role.SYSTEM,
-                    content = "Error: ${msg.content ?: msg.error ?: "Unknown error"}",
+                    content = "Error: $errorText",
                 )}
                 _isProcessing.value = false
             }

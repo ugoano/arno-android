@@ -193,7 +193,7 @@ class ArnoWebSocket(
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse message: ${e.message}")
+            Log.w(TAG, "Failed to parse message: ${e.message}\nRaw: ${raw.take(300)}")
         }
     }
 

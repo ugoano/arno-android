@@ -47,7 +47,7 @@ data class CommandResponse(
 @Serializable
 data class IncomingMessage(
     val type: String,
-    val content: String? = null,
+    val content: JsonElement? = null,
     val message: JsonElement? = null,
     val delta: JsonObject? = null,
     val command: ClientCommand? = null,
