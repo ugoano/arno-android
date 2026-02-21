@@ -14,6 +14,7 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.app.NotificationCompat
+import androidx.media.session.MediaButtonReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -130,6 +131,9 @@ class ArnoService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Forward media button intents to the MediaSession
+        mediaSession?.let { MediaButtonReceiver.handleIntent(it, intent) }
+
         when (intent?.action) {
             ACTION_SET_VOICE_MODE -> {
                 val modeName = intent.getStringExtra(EXTRA_VOICE_MODE)
@@ -209,6 +213,21 @@ class ArnoService : Service() {
 
     private fun setupMediaSession() {
         mediaSession = MediaSessionCompat(this, "ArnoMediaSession").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
+
+            // Route media button intents to this service
+            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                setClass(this@ArnoService, ArnoService::class.java)
+            }
+            val pendingIntent = PendingIntent.getService(
+                this@ArnoService, 0, mediaButtonIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            setMediaButtonReceiver(pendingIntent)
+
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
                     val keyEvent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
