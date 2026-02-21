@@ -4,12 +4,74 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Dark background circle -->
+
+    <!-- Left wing — subtle fill -->
     <path
-        android:fillColor="#0D1117"
-        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
-    <!-- "A" letter for Arno -->
+        android:fillColor="#19FFD700"
+        android:strokeColor="#2A2A3A"
+        android:strokeWidth="0.6"
+        android:strokeLineJoin="round"
+        android:pathData="M54,48 L24,30 L24,66 Z" />
+
+    <!-- Left A — leg top -->
     <path
-        android:fillColor="#58A6FF"
-        android:pathData="M54,28L38,76h8l3.5,-10.5h9L62,76h8L54,28zM51.5,59L54,50l2.5,9h-5z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M54,48 L24,30" />
+
+    <!-- Left A — leg bottom -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M54,48 L24,66" />
+
+    <!-- Left A — crossbar at midpoint -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="1.2"
+        android:pathData="M39,39 L39,57" />
+
+    <!-- Right wing — subtle fill -->
+    <path
+        android:fillColor="#19FFD700"
+        android:strokeColor="#2A2A3A"
+        android:strokeWidth="0.6"
+        android:strokeLineJoin="round"
+        android:pathData="M54,48 L84,30 L84,66 Z" />
+
+    <!-- Right A — leg top -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M54,48 L84,30" />
+
+    <!-- Right A — leg bottom -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M54,48 L84,66" />
+
+    <!-- Right A — crossbar at midpoint -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="1.2"
+        android:pathData="M69,39 L69,57" />
+
+    <!-- Centre knot -->
+    <path
+        android:fillColor="#060610"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="0.7"
+        android:pathData="M54,48m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+
 </vector>

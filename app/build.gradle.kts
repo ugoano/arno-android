@@ -14,8 +14,8 @@ android {
         applicationId = "network.arno.android"
         minSdk = 29
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.9.0"
+        versionCode = 15
+        versionName = "1.13.0"
     }
 
     buildTypes {
@@ -55,6 +55,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
+    implementation(libs.androidx.media)
+
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
@@ -64,6 +66,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

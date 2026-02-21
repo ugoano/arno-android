@@ -1,13 +1,7 @@
 package network.arno.android.ui.components
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -32,10 +26,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import network.arno.android.chat.Attachment
 import network.arno.android.ui.theme.*
+import network.arno.android.voice.VoiceInputManager
+import network.arno.android.voice.VoiceMode
 
 @Composable
 fun InputBar(
@@ -43,91 +40,71 @@ fun InputBar(
     onCancel: () -> Unit,
     isProcessing: Boolean,
     onRequestMicPermission: () -> Unit,
+    voiceMode: VoiceMode,
     attachments: List<Attachment>,
     onAttachClick: () -> Unit,
-    onRemoveAttachment: (Uri) -> Unit,
+    onRemoveAttachment: (android.net.Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var text by remember { mutableStateOf("") }
-    var isListening by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val speechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+
+    val voiceInputManager = remember {
+        VoiceInputManager(
+            context = context,
+            onResult = { transcript, viaVoice ->
+                onSend(transcript, viaVoice)
+            },
+            onTextAccumulated = { transcript ->
+                // Dictation mode: append to text field, user sends manually
+                text = if (text.isBlank()) transcript else "$text $transcript"
+            },
+        )
+    }
+
+    val isListening by voiceInputManager.isListening.collectAsState()
+    val isContinuousActive by voiceInputManager.isContinuousActive.collectAsState()
+    val partialText by voiceInputManager.partialText.collectAsState()
     val hasContent = text.isNotBlank() || attachments.any { it.error == null }
 
+    // Show partial text from voice in the text field
+    val displayText = if (partialText.isNotBlank() && (isListening || isContinuousActive)) partialText else text
+
+    // Determine mic colour based on mode and state
     val micColour by animateColorAsState(
-        targetValue = if (isListening) JarvisRed else JarvisCyan,
+        targetValue = when {
+            isContinuousActive && voiceMode == VoiceMode.WAKE_WORD -> JarvisYellow
+            isContinuousActive && voiceMode == VoiceMode.DICTATION -> JarvisGreen
+            isListening -> JarvisRed
+            else -> JarvisCyan
+        },
         label = "micColour",
     )
 
+    // Border colour follows mic state
+    val borderColour by animateColorAsState(
+        targetValue = when {
+            isContinuousActive && voiceMode == VoiceMode.WAKE_WORD -> JarvisYellow
+            isContinuousActive && voiceMode == VoiceMode.DICTATION -> JarvisGreen
+            isListening -> JarvisRed
+            else -> JarvisCyan
+        },
+        label = "borderColour",
+    )
+
     DisposableEffect(Unit) {
-        onDispose { speechRecognizer.destroy() }
+        onDispose { voiceInputManager.destroy() }
     }
 
-    fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            Log.w("InputBar", "Speech recognition not available")
-            return
-        }
+    fun handleMicClick() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
             onRequestMicPermission()
             return
         }
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-GB")
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        }
-
-        speechRecognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                isListening = true
-            }
-
-            override fun onBeginningOfSpeech() {}
-
-            override fun onRmsChanged(rmsdB: Float) {}
-
-            override fun onBufferReceived(buffer: ByteArray?) {}
-
-            override fun onEndOfSpeech() {
-                isListening = false
-            }
-
-            override fun onError(error: Int) {
-                Log.w("InputBar", "Speech error: $error")
-                isListening = false
-            }
-
-            override fun onResults(results: Bundle?) {
-                isListening = false
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val finalText = matches?.firstOrNull()
-                if (!finalText.isNullOrBlank()) {
-                    onSend(finalText, true)
-                    text = ""
-                }
-            }
-
-            override fun onPartialResults(partialResults: Bundle?) {
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val partial = matches?.firstOrNull()
-                if (!partial.isNullOrBlank()) {
-                    text = partial
-                }
-            }
-
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-
-        speechRecognizer.startListening(intent)
-    }
-
-    fun stopListening() {
-        speechRecognizer.stopListening()
-        isListening = false
+        // WAKE_WORD is handled by ArnoService — InputBar only handles PTT and dictation
+        if (voiceMode == VoiceMode.WAKE_WORD) return
+        voiceInputManager.toggle(voiceMode)
     }
 
     Surface(
@@ -142,6 +119,38 @@ fun InputBar(
                     .height(1.dp)
                     .background(JarvisBorder),
             )
+
+            // Voice mode indicator (shown when continuous mode is active)
+            if (isContinuousActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            when (voiceMode) {
+                                VoiceMode.WAKE_WORD -> JarvisYellow.copy(alpha = 0.08f)
+                                VoiceMode.DICTATION -> JarvisGreen.copy(alpha = 0.08f)
+                                else -> JarvisCyan.copy(alpha = 0.08f)
+                            }
+                        )
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        text = when (voiceMode) {
+                            VoiceMode.WAKE_WORD -> "\uD83D\uDC42 Listening for \"Arno\"..."
+                            VoiceMode.DICTATION -> "\uD83C\uDFA4 Dictation active — speak freely"
+                            else -> ""
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 0.5.sp,
+                        ),
+                        color = when (voiceMode) {
+                            VoiceMode.WAKE_WORD -> JarvisYellow
+                            VoiceMode.DICTATION -> JarvisGreen
+                            else -> JarvisCyan
+                        },
+                    )
+                }
+            }
 
             // Attachment preview strip
             if (attachments.isNotEmpty()) {
@@ -169,11 +178,16 @@ fun InputBar(
                 }
 
                 OutlinedTextField(
-                    value = text,
+                    value = displayText,
                     onValueChange = { text = it },
                     placeholder = {
                         Text(
-                            text = if (isListening) "LISTENING..." else "> message arno...",
+                            text = when {
+                                isContinuousActive && voiceMode == VoiceMode.WAKE_WORD -> "Say \"Arno\" to activate..."
+                                isContinuousActive && voiceMode == VoiceMode.DICTATION -> "Speak now..."
+                                isListening -> "LISTENING..."
+                                else -> "> message arno..."
+                            },
                             color = JarvisTextSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -181,8 +195,8 @@ fun InputBar(
                     shape = RoundedCornerShape(4.dp),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = JarvisText),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (isListening) JarvisRed else JarvisCyan,
-                        unfocusedBorderColor = JarvisBorder,
+                        focusedBorderColor = borderColour,
+                        unfocusedBorderColor = if (isContinuousActive) borderColour.copy(alpha = 0.5f) else JarvisBorder,
                         cursorColor = JarvisCyan,
                         focusedContainerColor = JarvisSurface,
                         unfocusedContainerColor = JarvisSurface,
@@ -190,6 +204,7 @@ fun InputBar(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
                         if (hasContent && !isProcessing) {
+                            if (isContinuousActive) voiceInputManager.stop()
                             onSend(text, false)
                             text = ""
                         }
@@ -198,16 +213,19 @@ fun InputBar(
                     modifier = Modifier.weight(1f),
                 )
 
-                // Mic button
+                // Mic button — icon changes per mode
                 IconButton(
-                    onClick = {
-                        if (isListening) stopListening() else startListening()
-                    },
+                    onClick = { handleMicClick() },
                     enabled = !isProcessing,
                     modifier = Modifier.padding(start = 4.dp),
                 ) {
                     Text(
-                        text = if (isListening) "\u23F9" else "\uD83C\uDFA4",
+                        text = when {
+                            isContinuousActive -> "\u23F9" // stop
+                            voiceMode == VoiceMode.WAKE_WORD -> "\uD83D\uDC42" // ear
+                            voiceMode == VoiceMode.DICTATION -> "\uD83C\uDF99" // studio mic
+                            else -> "\uD83C\uDFA4" // mic
+                        },
                         style = MaterialTheme.typography.titleLarge,
                         color = if (!isProcessing) micColour else JarvisBorder,
                     )
@@ -228,6 +246,7 @@ fun InputBar(
                     IconButton(
                         onClick = {
                             if (hasContent) {
+                                if (isContinuousActive) voiceInputManager.stop()
                                 onSend(text, false)
                                 text = ""
                             }
@@ -250,7 +269,7 @@ fun InputBar(
 @Composable
 private fun AttachmentPreviewStrip(
     attachments: List<Attachment>,
-    onRemove: (Uri) -> Unit,
+    onRemove: (android.net.Uri) -> Unit,
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),

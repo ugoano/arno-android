@@ -18,9 +18,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import network.arno.android.service.ArnoService
 import network.arno.android.ui.theme.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -39,6 +42,7 @@ import network.arno.android.settings.SettingsViewModel
 import network.arno.android.tasks.TasksRepository
 import network.arno.android.tasks.TasksViewModel
 import network.arno.android.transport.ArnoWebSocket
+import network.arno.android.voice.VoiceMode
 
 private enum class TopLevelRoute(
     val route: String,
@@ -86,6 +90,18 @@ fun ArnoApp(
     )
     val connectionState by webSocket.connectionState.collectAsState()
     val speechEnabled by settingsViewModel.speechEnabled.collectAsState()
+    val voiceMode by settingsViewModel.voiceMode.collectAsState()
+    val context = LocalContext.current
+
+    // Notify the foreground service when voice mode changes
+    LaunchedEffect(voiceMode) {
+        val intent = Intent(context, ArnoService::class.java).apply {
+            action = ArnoService.ACTION_SET_VOICE_MODE
+            putExtra(ArnoService.EXTRA_VOICE_MODE, voiceMode.name)
+        }
+        context.startService(intent)
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -115,6 +131,18 @@ fun ArnoApp(
                         actionIconContentColor = JarvisTextSecondary,
                     ),
                     actions = {
+                        // Voice mode cycle button
+                        IconButton(onClick = { settingsViewModel.cycleVoiceMode() }) {
+                            Text(
+                                text = when (voiceMode) {
+                                    VoiceMode.PUSH_TO_TALK -> "\uD83C\uDFA4"  // mic
+                                    VoiceMode.DICTATION -> "\uD83C\uDF99"     // studio mic
+                                    VoiceMode.WAKE_WORD -> "\uD83D\uDC42"    // ear
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        // Speech output toggle
                         IconButton(onClick = {
                             val nowEnabled = settingsViewModel.toggleSpeech()
                             commandExecutor.setSpeechMuted(!nowEnabled)
@@ -208,6 +236,7 @@ fun ArnoApp(
                 ChatScreen(
                     viewModel = chatViewModel,
                     onRequestMicPermission = onRequestMicPermission,
+                    voiceMode = voiceMode,
                 )
             }
             composable("sessions") {
