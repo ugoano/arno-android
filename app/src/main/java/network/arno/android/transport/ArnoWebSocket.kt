@@ -105,6 +105,7 @@ class ArnoWebSocket(
     private fun createListener() = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             Log.i(TAG, "WebSocket connected")
+            reconnectAttempt = 0
             _connectionState.value = ConnectionState.Connected
             sendRegistration()
             startHeartbeat()
