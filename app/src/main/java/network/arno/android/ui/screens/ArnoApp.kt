@@ -66,7 +66,15 @@ fun ArnoApp(
         factory = TasksViewModel.Factory(tasksRepository)
     )
     val sessionsViewModel: SessionsViewModel = viewModel(
-        factory = SessionsViewModel.Factory(sessionsRepository, webSocket)
+        factory = SessionsViewModel.Factory(sessionsRepository, webSocket, chatRepository) {
+            navController.navigate(TopLevelRoute.Chat.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     )
     val connectionState by webSocket.connectionState.collectAsState()
     val speechEnabled by settingsViewModel.speechEnabled.collectAsState()

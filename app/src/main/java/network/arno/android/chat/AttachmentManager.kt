@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
@@ -134,12 +133,8 @@ class AttachmentManager(private val context: Context) {
 
             val responseBody = response.body?.string() ?: "{}"
             val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
-            // Bridge returns {"image_ids": ["id1", ...]}
-            val imageIds = jsonResponse["image_ids"]?.jsonArray
-                ?.map { it.jsonPrimitive.content }
-                ?: emptyList()
-
-            val uploadedId = imageIds.firstOrNull()
+            // Bridge returns {"image_id": "uuid", "filename": "...", "url": "..."}
+            val uploadedId = jsonResponse["image_id"]?.jsonPrimitive?.content
                 ?: throw IllegalStateException("No image_id returned from upload")
 
             Log.i(TAG, "Uploaded ${attachment.name} -> $uploadedId")

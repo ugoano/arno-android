@@ -52,8 +52,12 @@ class ChatViewModel(
                 val uploaded = attachmentManager.uploadAll(serverUrl, sessionId)
                 val imageIds = attachmentManager.getUploadedIds()
 
-                chatRepository.addUserMessage(text, viaVoice, imageIds, localUris)
-                webSocket.sendMessage(text, viaVoice, imageIds)
+                // Use placeholder for image-only messages so bridge doesn't reject empty content
+                val messageText = text.ifBlank {
+                    if (imageIds.isNotEmpty()) "Attached image" else ""
+                }
+                chatRepository.addUserMessage(messageText, viaVoice, imageIds, localUris)
+                webSocket.sendMessage(messageText, viaVoice, imageIds)
                 attachmentManager.clearAttachments()
             }
         } else {

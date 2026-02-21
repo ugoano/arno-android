@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import network.arno.android.chat.ChatRepository
 import network.arno.android.transport.ArnoWebSocket
 
 class SessionsViewModel(
     private val sessionsRepository: SessionsRepository,
     private val webSocket: ArnoWebSocket,
+    private val chatRepository: ChatRepository,
+    private val onNavigateToChat: () -> Unit,
 ) : ViewModel() {
 
     val sessions: StateFlow<List<Session>> = sessionsRepository.sessions
@@ -45,7 +48,19 @@ class SessionsViewModel(
     }
 
     fun switchSession(sessionId: String) {
+        if (sessionId == _activeSessionId.value) return
+
         _activeSessionId.value = sessionId
+
+        // Load local history for the session
+        chatRepository.loadSession(sessionId)
+
+        // Reconnect WebSocket so bridge associates with the new session
+        webSocket.disconnect()
+        webSocket.connect()
+
+        // Navigate back to chat tab
+        onNavigateToChat()
     }
 
     fun clearError() {
@@ -55,10 +70,12 @@ class SessionsViewModel(
     class Factory(
         private val sessionsRepository: SessionsRepository,
         private val webSocket: ArnoWebSocket,
+        private val chatRepository: ChatRepository,
+        private val onNavigateToChat: () -> Unit,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SessionsViewModel(sessionsRepository, webSocket) as T
+            return SessionsViewModel(sessionsRepository, webSocket, chatRepository, onNavigateToChat) as T
         }
     }
 }
