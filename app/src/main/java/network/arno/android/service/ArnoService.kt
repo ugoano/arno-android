@@ -5,7 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -19,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import network.arno.android.ArnoApp
 import network.arno.android.MainActivity
@@ -61,6 +66,7 @@ class ArnoService : Service() {
     private var btVoiceInputManager: VoiceInputManager? = null
     private val btAudioFeedback = AudioFeedback()
     private lateinit var settingsRepository: SettingsRepository
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     inner class ArnoBinder : Binder() {
         val service: ArnoService get() = this@ArnoService
@@ -263,13 +269,82 @@ class ArnoService : Service() {
 
             isActive = true
         }
+
+        // Request audio focus and play silent audio so Android routes
+        // media button events to us (Oreo+ routes to last audio-playing app)
+        requestAudioFocusForMediaButtons()
+
         Log.i(TAG, "MediaSession activated for Bluetooth trigger")
+    }
+
+    /**
+     * On Android 8+, media button events route to the last app that played audio.
+     * Request audio focus and play a brief silent tone to register as that app.
+     */
+    private fun requestAudioFocusForMediaButtons() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener { /* no-op */ }
+            .build()
+        audioFocusRequest = focusRequest
+        audioManager.requestAudioFocus(focusRequest)
+        Log.i(TAG, "Audio focus requested for media button routing")
+
+        // Play a very short silent AudioTrack to register as audio-playing app
+        try {
+            val sampleRate = 8000
+            val samples = ShortArray(sampleRate / 10) // 100ms of silence
+            val audioTrack = android.media.AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    android.media.AudioFormat.Builder()
+                        .setSampleRate(sampleRate)
+                        .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)
+                        .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(samples.size * 2)
+                .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+                .build()
+            audioTrack.write(samples, 0, samples.size)
+            audioTrack.play()
+            // Release after a short delay
+            serviceScope.launch {
+                kotlinx.coroutines.delay(200)
+                audioTrack.stop()
+                audioTrack.release()
+                Log.i(TAG, "Silent audio played — media button routing claimed")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to play silent audio for media button routing", e)
+        }
+    }
+
+    private fun releaseAudioFocus() {
+        audioFocusRequest?.let {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager.abandonAudioFocusRequest(it)
+            audioFocusRequest = null
+        }
     }
 
     private fun teardownMediaSession() {
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+        releaseAudioFocus()
         Log.i(TAG, "MediaSession deactivated")
     }
 
