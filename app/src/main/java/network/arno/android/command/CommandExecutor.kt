@@ -5,16 +5,22 @@ import android.util.Log
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import network.arno.android.settings.SettingsRepository
 import network.arno.android.transport.ClientCommand
 import network.arno.android.transport.CommandResponse
 
-class CommandExecutor(private val context: Context) {
+class CommandExecutor(
+    private val context: Context,
+    settingsRepository: SettingsRepository,
+) {
 
     companion object {
         private const val TAG = "CommandExecutor"
     }
 
-    private val speakHandler = SpeakHandler(context)
+    private val speakHandler = SpeakHandler(context).apply {
+        muted = !settingsRepository.speechEnabled
+    }
     private val clipboardHandler = ClipboardHandler(context)
     private val linkHandler = LinkHandler(context)
     private val notificationHandler = NotificationHandler(context)
@@ -57,6 +63,10 @@ class CommandExecutor(private val context: Context) {
                 error = e.message ?: "Unknown error",
             )
         }
+    }
+
+    fun setSpeechMuted(muted: Boolean) {
+        speakHandler.muted = muted
     }
 
     fun shutdown() {

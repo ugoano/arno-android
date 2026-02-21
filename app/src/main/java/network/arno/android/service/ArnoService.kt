@@ -48,7 +48,8 @@ class ArnoService : Service() {
         Log.i(TAG, "Service created")
         createServiceChannel()
 
-        commandExecutor = CommandExecutor(applicationContext)
+        val settingsRepository = (application as ArnoApp).container.settingsRepository
+        commandExecutor = CommandExecutor(applicationContext, settingsRepository)
 
         val serverUrl = (application as ArnoApp).container.settingsRepository.serverUrl
         webSocket = ArnoWebSocket(
@@ -60,6 +61,7 @@ class ArnoService : Service() {
         (application as ArnoApp).container.apply {
             this.webSocket = this@ArnoService.webSocket
             this.chatRepository = this@ArnoService.chatRepository
+            this.commandExecutor = this@ArnoService.commandExecutor
         }
 
         startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))

@@ -27,10 +27,14 @@ class ChatViewModel(
         }
     }
 
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String, viaVoice: Boolean = false) {
         if (text.isBlank()) return
-        chatRepository.addUserMessage(text)
-        webSocket.sendMessage(text)
+        chatRepository.addUserMessage(text, viaVoice)
+        webSocket.sendMessage(text, viaVoice)
+    }
+
+    fun cancelTask() {
+        webSocket.sendCancel()
     }
 
     fun connect() {

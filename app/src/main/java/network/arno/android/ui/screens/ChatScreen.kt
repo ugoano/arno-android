@@ -13,7 +13,10 @@ import network.arno.android.ui.components.InputBar
 import network.arno.android.ui.components.MessageBubble
 
 @Composable
-fun ChatScreen(viewModel: ChatViewModel) {
+fun ChatScreen(
+    viewModel: ChatViewModel,
+    onRequestMicPermission: () -> Unit,
+) {
     val messages by viewModel.messages.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -40,8 +43,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
         }
 
         InputBar(
-            onSend = viewModel::sendMessage,
+            onSend = { text, viaVoice -> viewModel.sendMessage(text, viaVoice) },
+            onCancel = viewModel::cancelTask,
             isProcessing = isProcessing,
+            onRequestMicPermission = onRequestMicPermission,
         )
     }
 }

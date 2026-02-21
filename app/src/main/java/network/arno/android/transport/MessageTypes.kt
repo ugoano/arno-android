@@ -34,6 +34,11 @@ data class ChatMessage(
 )
 
 @Serializable
+data class CancelMessage(
+    val type: String = "cancel",
+)
+
+@Serializable
 data class CommandResponse(
     val type: String = "command_response",
     val id: String,

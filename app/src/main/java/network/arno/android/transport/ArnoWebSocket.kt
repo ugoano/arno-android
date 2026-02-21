@@ -98,6 +98,12 @@ class ArnoWebSocket(
         send(json.encodeToString(msg))
     }
 
+    fun sendCancel() {
+        val msg = CancelMessage()
+        send(json.encodeToString(msg))
+        Log.i(TAG, "Cancel request sent")
+    }
+
     private fun send(text: String) {
         webSocket?.send(text) ?: Log.w(TAG, "WebSocket not connected, cannot send")
     }
@@ -171,10 +177,10 @@ class ArnoWebSocket(
             when (msg.type) {
                 "client_command" -> {
                     val cmd = msg.command ?: return
-                    Log.i(TAG, "Received command: ${cmd.type}")
+                    Log.d(TAG, "Received command: ${cmd.type}")
                     val response = onCommand(cmd)
                     send(json.encodeToString(response))
-                    Log.i(TAG, "Command response sent: ${response.status}")
+                    Log.d(TAG, "Command response sent: ${response.status}")
                 }
                 "session" -> {
                     currentSessionId = msg.sessionId

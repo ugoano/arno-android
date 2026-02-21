@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not */ }
 
+    private val micPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -51,11 +54,16 @@ class MainActivity : ComponentActivity() {
                 if (serviceBound.value) {
                     val ws = app.container.webSocket
                     val repo = app.container.chatRepository
-                    if (ws != null && repo != null) {
+                    val cmdExec = app.container.commandExecutor
+                    if (ws != null && repo != null && cmdExec != null) {
                         ArnoApp(
                             webSocket = ws,
                             chatRepository = repo,
                             settingsRepository = app.container.settingsRepository,
+                            commandExecutor = cmdExec,
+                            onRequestMicPermission = {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            },
                         )
                     }
                 }

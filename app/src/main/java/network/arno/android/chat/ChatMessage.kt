@@ -8,6 +8,7 @@ data class ChatMessage(
     val toolName: String? = null,
     val toolInput: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
+    val viaVoice: Boolean = false,
 ) {
     enum class Role { USER, ASSISTANT, SYSTEM, TOOL }
 }

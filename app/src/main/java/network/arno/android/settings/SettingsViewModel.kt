@@ -12,9 +12,19 @@ class SettingsViewModel(
     private val _serverUrl = MutableStateFlow(settingsRepository.serverUrl)
     val serverUrl: StateFlow<String> = _serverUrl
 
+    private val _speechEnabled = MutableStateFlow(settingsRepository.speechEnabled)
+    val speechEnabled: StateFlow<Boolean> = _speechEnabled
+
     fun updateServerUrl(url: String) {
         settingsRepository.serverUrl = url
         _serverUrl.value = url
+    }
+
+    fun toggleSpeech(): Boolean {
+        val newValue = !_speechEnabled.value
+        settingsRepository.speechEnabled = newValue
+        _speechEnabled.value = newValue
+        return newValue
     }
 
     class Factory(

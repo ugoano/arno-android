@@ -8,6 +8,7 @@ class SettingsRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "arno_settings"
         private const val KEY_SERVER_URL = "server_url"
+        private const val KEY_SPEECH_ENABLED = "speech_enabled"
         private const val DEFAULT_SERVER_URL = "https://chat.arno.network"
     }
 
@@ -17,4 +18,8 @@ class SettingsRepository(context: Context) {
     var serverUrl: String
         get() = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         set(value) = prefs.edit().putString(KEY_SERVER_URL, value).apply()
+
+    var speechEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SPEECH_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_SPEECH_ENABLED, value).apply()
 }

@@ -16,6 +16,7 @@ class SpeakHandler(context: Context) : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = TextToSpeech(context, this)
     private var ready = false
+    var muted = false
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -28,6 +29,10 @@ class SpeakHandler(context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun handle(payload: JsonObject): HandlerResult {
+        if (muted) {
+            Log.d(TAG, "Speech muted, ignoring speak command")
+            return HandlerResult.Success()
+        }
         if (!ready) return HandlerResult.Error("TTS engine not ready")
 
         val text = payload["text"]?.jsonPrimitive?.content

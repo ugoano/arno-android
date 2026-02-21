@@ -19,22 +19,17 @@ class ChatRepository {
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing
 
-    fun addUserMessage(text: String) {
-        _messages.update { it + ChatMessage(role = ChatMessage.Role.USER, content = text) }
+    fun addUserMessage(text: String, viaVoice: Boolean = false) {
+        _messages.update { it + ChatMessage(role = ChatMessage.Role.USER, content = text, viaVoice = viaVoice) }
         _isProcessing.value = true
     }
 
     fun handleIncoming(msg: IncomingMessage) {
-        Log.i(TAG, ">>> handleIncoming type=${msg.type} message=${msg.message?.toString()?.take(200)} delta=${msg.delta?.toString()?.take(100)} content=${msg.content?.toString()?.take(100)}")
         when (msg.type) {
             // Bridge sends "assistant" with message.content[] containing text and tool_use blocks
             "assistant" -> {
-                val messageObj = msg.message as? JsonObject
-                Log.i(TAG, "assistant: messageObj=${messageObj != null}, raw message class=${msg.message?.let { it::class.simpleName }}")
-                if (messageObj == null) return
-                val contentArray = messageObj["content"] as? JsonArray
-                Log.i(TAG, "assistant: contentArray=${contentArray?.size}, keys=${messageObj.keys}")
-                if (contentArray == null) return
+                val messageObj = msg.message as? JsonObject ?: return
+                val contentArray = messageObj["content"] as? JsonArray ?: return
 
                 for (block in contentArray) {
                     val blockObj = block as? JsonObject ?: continue
@@ -76,9 +71,7 @@ class ChatRepository {
 
             // Bridge sends "content_block_delta" with delta.text for streaming
             "content_block_delta" -> {
-                Log.i(TAG, "delta: raw=${msg.delta}")
                 val deltaText = msg.delta?.get("text")?.jsonPrimitive?.contentOrNull ?: return
-                Log.i(TAG, "delta text: ${deltaText.take(80)}")
                 _messages.update { messages ->
                     val last = messages.lastOrNull()
                     if (last != null && last.role == ChatMessage.Role.ASSISTANT && last.isStreaming) {
@@ -124,6 +117,31 @@ class ChatRepository {
                     }
                 }
                 _isProcessing.value = false
+            }
+
+            // Bridge confirms task was cancelled
+            "task_cancelled" -> {
+                _messages.update { messages ->
+                    val finalised = messages.map {
+                        if (it.isStreaming) it.copy(isStreaming = false) else it
+                    }
+                    // Append [CANCELLED] to the last assistant message
+                    val lastAssistantIdx = finalised.indexOfLast {
+                        it.role == ChatMessage.Role.ASSISTANT
+                    }
+                    if (lastAssistantIdx >= 0) {
+                        finalised.toMutableList().apply {
+                            val msg = this[lastAssistantIdx]
+                            this[lastAssistantIdx] = msg.copy(
+                                content = msg.content + " [CANCELLED]"
+                            )
+                        }
+                    } else {
+                        finalised
+                    }
+                }
+                _isProcessing.value = false
+                Log.i(TAG, "Task cancelled")
             }
 
             // Status and error messages

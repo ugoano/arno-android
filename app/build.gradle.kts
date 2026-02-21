@@ -13,8 +13,8 @@ android {
         applicationId = "network.arno.android"
         minSdk = 29
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.5.0"
     }
 
     buildTypes {
@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
 
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
