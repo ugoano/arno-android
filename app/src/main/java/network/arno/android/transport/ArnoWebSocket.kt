@@ -1,0 +1,223 @@
+package network.arno.android.transport
+
+import android.os.Build
+import android.util.Log
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okhttp3.*
+import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
+
+class ArnoWebSocket(
+    private val serverUrl: String,
+    private val onCommand: (ClientCommand) -> CommandResponse,
+) {
+    companion object {
+        private const val TAG = "ArnoWebSocket"
+        private const val HEARTBEAT_INTERVAL_MS = 30_000L
+        private const val BACKOFF_MAX_S = 30.0
+        private const val NORMAL_CLOSE_CODE = 1000
+
+        val CAPABILITIES = listOf(
+            "speak", "clipboard_copy", "clipboard_paste", "open_link", "notification"
+        )
+
+        val PRIORITIES = mapOf(
+            "speak" to 1,
+            "notification" to 1,
+            "clipboard_copy" to 2,
+            "clipboard_paste" to 2,
+            "open_link" to 2,
+        )
+    }
+
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val client = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(20, TimeUnit.SECONDS)
+        .build()
+
+    private var webSocket: WebSocket? = null
+    private var heartbeatJob: Job? = null
+    private var reconnectJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val clientId: String = generateClientId()
+
+    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
+    val connectionState: StateFlow<ConnectionState> = _connectionState
+
+    private val _incomingMessages = MutableSharedFlow<IncomingMessage>(extraBufferCapacity = 64)
+    val incomingMessages: SharedFlow<IncomingMessage> = _incomingMessages
+
+    private var sessionId: String? = null
+    var currentSessionId: String?
+        get() = sessionId
+        private set(value) { sessionId = value }
+
+    private fun generateClientId(): String {
+        val model = Build.MODEL.lowercase().replace(" ", "_")
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(model.toByteArray())
+            .take(4)
+            .joinToString("") { "%02x".format(it) }
+        return "android_$hash"
+    }
+
+    fun connect() {
+        if (_connectionState.value is ConnectionState.Connected ||
+            _connectionState.value is ConnectionState.Connecting) return
+
+        _connectionState.value = ConnectionState.Connecting
+        val wsUrl = serverUrl.replace("https://", "wss://").replace("http://", "ws://")
+            .trimEnd('/') + "/ws"
+
+        val request = Request.Builder().url(wsUrl).build()
+        webSocket = client.newWebSocket(request, createListener())
+    }
+
+    fun disconnect() {
+        reconnectJob?.cancel()
+        heartbeatJob?.cancel()
+        webSocket?.close(NORMAL_CLOSE_CODE, "Client disconnect")
+        webSocket = null
+        _connectionState.value = ConnectionState.Disconnected
+    }
+
+    fun sendMessage(text: String, viaVoice: Boolean = false) {
+        val msg = ChatMessage(
+            content = text,
+            clientId = clientId,
+            viaVoice = viaVoice,
+        )
+        send(json.encodeToString(msg))
+    }
+
+    private fun send(text: String) {
+        webSocket?.send(text) ?: Log.w(TAG, "WebSocket not connected, cannot send")
+    }
+
+    private fun createListener() = object : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            Log.i(TAG, "WebSocket connected")
+            _connectionState.value = ConnectionState.Connected
+            sendRegistration()
+            startHeartbeat()
+        }
+
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            handleMessage(text)
+        }
+
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            Log.i(TAG, "WebSocket closing: $code $reason")
+            webSocket.close(NORMAL_CLOSE_CODE, null)
+        }
+
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            Log.i(TAG, "WebSocket closed: $code $reason")
+            heartbeatJob?.cancel()
+            if (code != NORMAL_CLOSE_CODE) {
+                scheduleReconnect()
+            } else {
+                _connectionState.value = ConnectionState.Disconnected
+            }
+        }
+
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            Log.e(TAG, "WebSocket failure: ${t.message}")
+            heartbeatJob?.cancel()
+            _connectionState.value = ConnectionState.Error(t.message ?: "Unknown error")
+            scheduleReconnect()
+        }
+    }
+
+    private fun sendRegistration() {
+        val reg = ClientRegistration(
+            clientId = clientId,
+            hostname = Build.MODEL,
+            capabilities = CAPABILITIES,
+            priorityFor = PRIORITIES,
+        )
+        send(json.encodeToString(reg))
+        Log.i(TAG, "Registered as $clientId (${Build.MODEL})")
+    }
+
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                delay(HEARTBEAT_INTERVAL_MS)
+                val hb = HeartbeatMessage(
+                    clientId = clientId,
+                    timestamp = System.currentTimeMillis() / 1000.0,
+                )
+                send(json.encodeToString(hb))
+                Log.d(TAG, "Heartbeat sent")
+            }
+        }
+    }
+
+    private fun handleMessage(raw: String) {
+        try {
+            val msg = json.decodeFromString<IncomingMessage>(raw)
+
+            when (msg.type) {
+                "client_command" -> {
+                    val cmd = msg.command ?: return
+                    Log.i(TAG, "Received command: ${cmd.type}")
+                    val response = onCommand(cmd)
+                    send(json.encodeToString(response))
+                    Log.i(TAG, "Command response sent: ${response.status}")
+                }
+                "session" -> {
+                    currentSessionId = msg.session
+                    Log.i(TAG, "Session assigned: ${msg.session}")
+                }
+                "heartbeat_ack" -> {
+                    Log.d(TAG, "Heartbeat acknowledged")
+                }
+                else -> {
+                    // Forward to UI layer via shared flow
+                    scope.launch { _incomingMessages.emit(msg) }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse message: ${e.message}")
+        }
+    }
+
+    private var reconnectAttempt = 0
+
+    private fun scheduleReconnect() {
+        reconnectJob?.cancel()
+        reconnectJob = scope.launch {
+            val delayS = calculateBackoff(reconnectAttempt)
+            _connectionState.value = ConnectionState.Reconnecting(reconnectAttempt + 1)
+            Log.i(TAG, "Reconnecting in ${delayS}s (attempt ${reconnectAttempt + 1})")
+            delay((delayS * 1000).toLong())
+            reconnectAttempt++
+            connect()
+        }
+    }
+
+    private fun calculateBackoff(attempt: Int): Double {
+        val delay = Math.pow(2.0, attempt.toDouble())
+        return delay.coerceAtMost(BACKOFF_MAX_S)
+    }
+
+    fun resetReconnectCounter() {
+        reconnectAttempt = 0
+    }
+
+    fun destroy() {
+        scope.cancel()
+        disconnect()
+        client.dispatcher.executorService.shutdown()
+    }
+}
