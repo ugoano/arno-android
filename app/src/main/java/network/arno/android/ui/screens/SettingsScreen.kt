@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import network.arno.android.settings.SettingsViewModel
+import network.arno.android.BuildConfig
 import network.arno.android.transport.ArnoWebSocket
 import network.arno.android.transport.ConnectionState
 
@@ -71,6 +72,15 @@ fun SettingsScreen(
         ListItem(
             headlineContent = { Text("Capabilities") },
             supportingContent = { Text(ArnoWebSocket.CAPABILITIES.joinToString(", ")) },
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("App", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        ListItem(
+            headlineContent = { Text("Version") },
+            supportingContent = { Text("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})") },
         )
     }
 }

@@ -25,11 +25,16 @@ class ChatRepository {
     }
 
     fun handleIncoming(msg: IncomingMessage) {
+        Log.i(TAG, ">>> handleIncoming type=${msg.type} message=${msg.message?.toString()?.take(200)} delta=${msg.delta?.toString()?.take(100)} content=${msg.content?.toString()?.take(100)}")
         when (msg.type) {
             // Bridge sends "assistant" with message.content[] containing text and tool_use blocks
             "assistant" -> {
-                val messageObj = msg.message as? JsonObject ?: return
-                val contentArray = messageObj["content"] as? JsonArray ?: return
+                val messageObj = msg.message as? JsonObject
+                Log.i(TAG, "assistant: messageObj=${messageObj != null}, raw message class=${msg.message?.let { it::class.simpleName }}")
+                if (messageObj == null) return
+                val contentArray = messageObj["content"] as? JsonArray
+                Log.i(TAG, "assistant: contentArray=${contentArray?.size}, keys=${messageObj.keys}")
+                if (contentArray == null) return
 
                 for (block in contentArray) {
                     val blockObj = block as? JsonObject ?: continue
@@ -71,7 +76,9 @@ class ChatRepository {
 
             // Bridge sends "content_block_delta" with delta.text for streaming
             "content_block_delta" -> {
+                Log.i(TAG, "delta: raw=${msg.delta}")
                 val deltaText = msg.delta?.get("text")?.jsonPrimitive?.contentOrNull ?: return
+                Log.i(TAG, "delta text: ${deltaText.take(80)}")
                 _messages.update { messages ->
                     val last = messages.lastOrNull()
                     if (last != null && last.role == ChatMessage.Role.ASSISTANT && last.isStreaming) {
