@@ -60,6 +60,9 @@ class ArnoWebSocket(
         get() = sessionId
         private set(value) { sessionId = value }
 
+    // When set, the next connect() will send a reconnect message for this session
+    private var pendingReconnectSessionId: String? = null
+
     private fun generateClientId(): String {
         val model = Build.MODEL.lowercase().replace(" ", "_")
         val hash = MessageDigest.getInstance("SHA-256")
@@ -79,6 +82,17 @@ class ArnoWebSocket(
 
         val request = Request.Builder().url(wsUrl).build()
         webSocket = client.newWebSocket(request, createListener())
+    }
+
+    /**
+     * Connect (or reconnect) targeting a specific session.
+     * After the WebSocket opens, sends a reconnect message so the bridge
+     * restores that session's context and replays chat history.
+     */
+    fun connectToSession(targetSessionId: String) {
+        pendingReconnectSessionId = targetSessionId
+        currentSessionId = targetSessionId
+        connect()
     }
 
     fun disconnect() {
@@ -115,6 +129,15 @@ class ArnoWebSocket(
             reconnectAttempt = 0
             _connectionState.value = ConnectionState.Connected
             sendRegistration()
+
+            // If switching to a specific session, tell the bridge
+            pendingReconnectSessionId?.let { targetSession ->
+                pendingReconnectSessionId = null
+                val reconnect = ReconnectMessage(sessionId = targetSession)
+                send(json.encodeToString(reconnect))
+                Log.i(TAG, "Sent reconnect for session: ${targetSession.take(20)}...")
+            }
+
             startHeartbeat()
         }
 
@@ -186,6 +209,11 @@ class ArnoWebSocket(
                 "session" -> {
                     currentSessionId = msg.sessionId
                     Log.i(TAG, "Session assigned: ${msg.sessionId}")
+                }
+                "chat_history" -> {
+                    // Forward to ChatRepository for rendering
+                    Log.i(TAG, "Received chat_history for session: ${msg.sessionId?.take(20)}")
+                    scope.launch { _incomingMessages.emit(msg) }
                 }
                 "heartbeat_ack" -> {
                     Log.d(TAG, "Heartbeat acknowledged")

@@ -208,10 +208,34 @@ class ChatRepository(
                 tasksRepository.handleTasksSummary(msg.summary)
             }
 
+            // Bridge sends chat_history on reconnect/session switch
+            "chat_history" -> {
+                val messagesArray = msg.messages ?: return
+                Log.i(TAG, "Received chat_history with ${messagesArray.size} messages")
+
+                val chatMessages = messagesArray.mapNotNull { element ->
+                    val obj = element as? JsonObject ?: return@mapNotNull null
+                    val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val chatRole = when (role) {
+                        "user" -> ChatMessage.Role.USER
+                        "assistant" -> ChatMessage.Role.ASSISTANT
+                        else -> return@mapNotNull null
+                    }
+                    ChatMessage(role = chatRole, content = content)
+                }
+
+                if (chatMessages.isNotEmpty()) {
+                    _messages.value = chatMessages
+                    _isProcessing.value = false
+                    Log.i(TAG, "Loaded ${chatMessages.size} messages from bridge chat_history")
+                }
+            }
+
             // Ignore internal bridge messages that don't need UI display
             "task_created", "task_completed", "task_failed",
             "task_queued", "queue_task_started", "queued_task_cancelled",
-            "task_progress", "replay", "chat_history", "system_message",
+            "task_progress", "replay", "system_message",
             "init", "raw", "auth_error", "queue_full", "cancel_queued_failed" -> {
                 Log.d(TAG, "Ignoring bridge message type: ${msg.type}")
             }

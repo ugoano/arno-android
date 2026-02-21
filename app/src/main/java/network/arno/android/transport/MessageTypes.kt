@@ -39,6 +39,14 @@ data class CancelMessage(
 )
 
 @Serializable
+data class ReconnectMessage(
+    val type: String = "reconnect",
+    @SerialName("session_id") val sessionId: String,
+    @SerialName("last_task_id") val lastTaskId: String? = null,
+    @SerialName("last_chunk_offset") val lastChunkOffset: Int = 0,
+)
+
+@Serializable
 data class CommandResponse(
     val type: String = "command_response",
     val id: String,
@@ -54,6 +62,7 @@ data class IncomingMessage(
     val type: String,
     val content: JsonElement? = null,
     val message: JsonElement? = null,
+    val messages: kotlinx.serialization.json.JsonArray? = null,
     val delta: JsonObject? = null,
     val command: ClientCommand? = null,
     val session: String? = null,

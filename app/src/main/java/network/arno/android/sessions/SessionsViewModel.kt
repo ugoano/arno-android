@@ -52,12 +52,14 @@ class SessionsViewModel(
 
         _activeSessionId.value = sessionId
 
-        // Load local history for the session
+        // Load local Room history immediately (may be empty for remote sessions)
         chatRepository.loadSession(sessionId)
 
-        // Reconnect WebSocket so bridge associates with the new session
+        // Reconnect WebSocket targeting the new session.
+        // This sends a reconnect message to the bridge which restores session
+        // context and replays chat history (overwriting empty local state).
         webSocket.disconnect()
-        webSocket.connect()
+        webSocket.connectToSession(sessionId)
 
         // Navigate back to chat tab
         onNavigateToChat()
