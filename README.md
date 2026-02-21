@@ -112,22 +112,32 @@ app/src/main/java/network/arno/android/
 
 ## Building
 
-Open the project in Android Studio and build normally:
+### With build script (recommended)
+
+The `build.sh` wrapper sets `JAVA_HOME` and `ANDROID_HOME` automatically:
 
 ```bash
+./build.sh                    # assembleDebug (default)
+./build.sh assembleRelease    # release build
+./build.sh clean              # clean
+./build.sh installDebug       # install to connected device
+```
+
+### With Android Studio
+
+Open the project in Android Studio and build normally.
+
+### With raw Gradle
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew assembleDebug
 ```
 
-Or install directly to a connected device:
-
-```bash
-./gradlew installDebug
-```
-
 **Requirements:**
-- Android Studio Ladybug or later
-- JDK 11+
-- Android SDK 35 (compileSdk)
+- JDK 17 (`brew install openjdk@17`)
+- Android SDK 35, build-tools 34+35 (`brew install --cask android-commandlinetools`)
 - Min SDK 29 (Android 10)
 
 ## Configuration

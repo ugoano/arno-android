@@ -24,7 +24,13 @@ Kotlin + Jetpack Compose Android app. Connects to CC Web Bridge (chat.arno.netwo
 - Deterministic client ID from `Build.MODEL`
 
 ## Build
+Use `./build.sh` — it sets JAVA_HOME and ANDROID_HOME for the Mac Mini environment.
 ```bash
-./gradlew assembleDebug
-./gradlew installDebug
+./build.sh                    # assembleDebug (default)
+./build.sh assembleRelease    # release build
+./build.sh installDebug       # install to device
 ```
+
+**Mac Mini paths (set by build.sh):**
+- JAVA_HOME: `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`
+- ANDROID_HOME: `/opt/homebrew/share/android-commandlinetools`
