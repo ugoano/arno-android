@@ -40,6 +40,9 @@ class VoiceInputManager(
     private var pttRetryCount = 0
     private var currentMode: VoiceMode = VoiceMode.PUSH_TO_TALK
 
+    /** True from the moment start() is called until recognition finishes or errors out. */
+    private var isActive = false
+
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening
 
@@ -106,11 +109,14 @@ class VoiceInputManager(
                 pttRetryCount++
                 Log.i(TAG, "PTT transient error ($error), retrying (attempt ${pttRetryCount + 1})")
                 mainHandler.postDelayed({ retryPushToTalk() }, 200)
+            } else {
+                isActive = false
             }
         }
 
         override fun onResults(results: Bundle?) {
             _isListening.value = false
+            isActive = false
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val transcript = matches?.firstOrNull()?.trim() ?: ""
 
@@ -212,6 +218,7 @@ class VoiceInputManager(
         shouldRestart = mode != VoiceMode.PUSH_TO_TALK
         pendingSingleCapture = false
         pttRetryCount = 0
+        isActive = true
         _isContinuousActive.value = shouldRestart
         _partialText.value = ""
 
@@ -230,6 +237,7 @@ class VoiceInputManager(
         }
         shouldRestart = false
         pendingSingleCapture = false
+        isActive = false
         _isContinuousActive.value = false
         _isListening.value = false
         _partialText.value = ""
@@ -243,7 +251,7 @@ class VoiceInputManager(
 
     /** Toggle: if currently active in given mode, stop. Otherwise start. */
     fun toggle(mode: VoiceMode) {
-        if (_isContinuousActive.value || _isListening.value) {
+        if (isActive || _isContinuousActive.value || _isListening.value) {
             stop()
         } else {
             start(mode)
