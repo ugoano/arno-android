@@ -232,6 +232,17 @@ class ChatRepository(
                 }
             }
 
+            // WebSocket connection lost — reset processing state
+            "connection_lost" -> {
+                _messages.update { messages ->
+                    messages.map {
+                        if (it.isStreaming) it.copy(isStreaming = false) else it
+                    }
+                }
+                _isProcessing.value = false
+                Log.i(TAG, "Connection lost — reset processing state")
+            }
+
             // Ignore internal bridge messages that don't need UI display
             "task_created", "task_completed", "task_failed",
             "task_queued", "queue_task_started", "queued_task_cancelled",

@@ -1,5 +1,6 @@
 package network.arno.android.ui.components
 
+import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import androidx.compose.foundation.background
@@ -22,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import coil.compose.AsyncImage
 import io.noties.markwon.Markwon
 import network.arno.android.chat.ChatMessage
@@ -102,9 +106,23 @@ fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Image attachments
+            // Attachments — split into images and other files
             if (message.localImageUris.isNotEmpty()) {
-                MessageImageGrid(uris = message.localImageUris)
+                val imageExts = setOf(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
+                val imageUris = message.localImageUris.filter { uri ->
+                    imageExts.any { uri.lowercase().endsWith(it) }
+                }
+                val fileUris = message.localImageUris.filter { uri ->
+                    imageExts.none { uri.lowercase().endsWith(it) }
+                }
+
+                if (imageUris.isNotEmpty()) {
+                    MessageImageGrid(uris = imageUris)
+                }
+                if (fileUris.isNotEmpty()) {
+                    if (imageUris.isNotEmpty()) Spacer(modifier = Modifier.height(4.dp))
+                    MessageFileList(uris = fileUris)
+                }
                 if (message.content.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                 }
@@ -169,6 +187,37 @@ private fun MessageImageGrid(uris: List<String>) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageFileList(uris: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        uris.forEach { uri ->
+            val fileName = Uri.parse(uri).lastPathSegment
+                ?: uri.substringAfterLast("/").ifEmpty { "file" }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(JarvisToolBg, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AttachFile,
+                    contentDescription = null,
+                    tint = JarvisTextSecondary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = fileName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = JarvisText,
+                    maxLines = 1,
+                )
             }
         }
     }

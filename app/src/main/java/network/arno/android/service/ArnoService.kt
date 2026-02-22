@@ -66,7 +66,7 @@ class ArnoService : Service() {
     private var currentConnectionText: String = "Connecting..."
     private var mediaSession: MediaSessionCompat? = null
     private var btVoiceInputManager: VoiceInputManager? = null
-    private val btAudioFeedback = AudioFeedback()
+    private lateinit var btAudioFeedback: AudioFeedback
     private lateinit var settingsRepository: SettingsRepository
     private var audioFocusRequest: AudioFocusRequest? = null
     private var mediaButtonReceiver: BroadcastReceiver? = null
@@ -79,6 +79,8 @@ class ArnoService : Service() {
         super.onCreate()
         Log.i(TAG, "Service created")
         createServiceChannel()
+
+        btAudioFeedback = AudioFeedback(applicationContext)
 
         val container = (application as ArnoApp).container
         settingsRepository = container.settingsRepository
@@ -414,7 +416,7 @@ class ArnoService : Service() {
         android.os.Handler(mainLooper).post {
             Log.i(TAG, "triggerBluetoothVoiceInput on thread=${Thread.currentThread().name}")
 
-            btAudioFeedback.playDoubleBeep()
+            btAudioFeedback.playActivationTone()
 
             // If already capturing from a BT trigger, stop the current one
             if (btVoiceInputManager != null) {

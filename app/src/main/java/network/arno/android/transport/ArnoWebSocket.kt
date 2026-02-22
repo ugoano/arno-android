@@ -164,6 +164,10 @@ class ArnoWebSocket(
             Log.e(TAG, "WebSocket failure: ${t.message}")
             heartbeatJob?.cancel()
             _connectionState.value = ConnectionState.Error(t.message ?: "Unknown error")
+            // Reset processing state so UI doesn't show stale spinner
+            scope.launch {
+                _incomingMessages.emit(IncomingMessage(type = "connection_lost"))
+            }
             scheduleReconnect()
         }
     }

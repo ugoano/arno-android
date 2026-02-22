@@ -26,7 +26,7 @@ class VoiceInputManager(
         private const val TAG = "VoiceInputManager"
     }
 
-    private val audioFeedback = AudioFeedback()
+    private val audioFeedback = AudioFeedback(context)
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var currentMode: VoiceMode = VoiceMode.PUSH_TO_TALK
@@ -196,7 +196,10 @@ class VoiceInputManager(
 
     /** Stop all listening. */
     fun stop() {
-        audioFeedback.play(AudioFeedback.Tone.LISTEN_STOP)
+        // Only play stop tone if actually listening or in a continuous mode
+        if (_isListening.value || _isContinuousActive.value) {
+            audioFeedback.play(AudioFeedback.Tone.LISTEN_STOP)
+        }
         shouldRestart = false
         pendingSingleCapture = false
         _isContinuousActive.value = false

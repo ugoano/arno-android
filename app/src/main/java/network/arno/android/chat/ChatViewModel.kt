@@ -54,7 +54,7 @@ class ChatViewModel(
 
                 // Use placeholder for image-only messages so bridge doesn't reject empty content
                 val messageText = text.ifBlank {
-                    if (imageIds.isNotEmpty()) "Attached image" else ""
+                    if (imageIds.isNotEmpty()) "Attached file" else ""
                 }
                 chatRepository.addUserMessage(messageText, viaVoice, imageIds, localUris)
                 webSocket.sendMessage(messageText, viaVoice, imageIds)

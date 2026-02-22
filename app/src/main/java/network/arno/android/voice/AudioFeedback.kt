@@ -1,18 +1,28 @@
 package network.arno.android.voice
 
+import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.ToneGenerator
 import android.util.Log
 
 /**
  * Provides audio feedback for voice mode state changes.
- * Uses ToneGenerator for low-latency beeps.
+ *
+ * Activation tones (LISTEN_START, WAKE_WORD_DETECTED) play a custom WAV from
+ * raw resources when a Context is available, falling back to ToneGenerator.
+ * Feedback tones (LISTEN_STOP, SPEECH_CAPTURED) always use ToneGenerator for
+ * low-latency response.
  */
-class AudioFeedback {
+class AudioFeedback(private val context: Context? = null) {
 
     companion object {
         private const val TAG = "AudioFeedback"
         private const val STREAM_VOLUME = 100 // 0-100, max for audibility on BT
+
+        /** Tones that use the custom WAV when available. */
+        private val ACTIVATION_TONES = setOf(Tone.LISTEN_START, Tone.WAKE_WORD_DETECTED)
     }
 
     enum class Tone(val frequencyHz: Int, val durationMs: Int, val toneType: Int) {
@@ -31,7 +41,46 @@ class AudioFeedback {
         null
     }
 
+    private var activationPlayer: MediaPlayer? = null
+    private var customToneResId: Int = resolveCustomTone()
+
+    private fun resolveCustomTone(): Int {
+        val ctx = context ?: return 0
+        return ctx.resources.getIdentifier("bt_activation", "raw", ctx.packageName)
+    }
+
+    /**
+     * Play the given tone. Activation tones use the custom WAV when available;
+     * feedback tones always use ToneGenerator.
+     */
     fun play(tone: Tone) {
+        if (tone in ACTIVATION_TONES && customToneResId != 0 && context != null) {
+            playCustomWav()
+        } else {
+            playToneGenerator(tone)
+        }
+    }
+
+    private fun playCustomWav() {
+        try {
+            activationPlayer?.release()
+            activationPlayer = MediaPlayer.create(context, customToneResId)?.apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setOnCompletionListener { mp -> mp.release() }
+                start()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Custom WAV failed, falling back to ToneGenerator", e)
+            playToneGenerator(Tone.LISTEN_START)
+        }
+    }
+
+    private fun playToneGenerator(tone: Tone) {
         try {
             toneGenerator?.startTone(tone.toneType, tone.durationMs)
         } catch (e: Exception) {
@@ -40,22 +89,11 @@ class AudioFeedback {
     }
 
     /**
-     * Play a distinctive double-beep for BT trigger activation.
-     * More noticeable than a single tone, especially through BT earphones.
+     * Play the custom activation tone directly.
+     * Used by BT trigger path. Falls back to ToneGenerator if unavailable.
      */
-    fun playDoubleBeep() {
-        try {
-            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                try {
-                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to play second beep", e)
-                }
-            }, 200)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to play double beep", e)
-        }
+    fun playActivationTone() {
+        play(Tone.LISTEN_START)
     }
 
     fun release() {
@@ -65,5 +103,11 @@ class AudioFeedback {
             Log.w(TAG, "Failed to release ToneGenerator", e)
         }
         toneGenerator = null
+        try {
+            activationPlayer?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release MediaPlayer", e)
+        }
+        activationPlayer = null
     }
 }
