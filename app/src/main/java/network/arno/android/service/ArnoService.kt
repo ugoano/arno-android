@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -67,6 +69,7 @@ class ArnoService : Service() {
     private val btAudioFeedback = AudioFeedback()
     private lateinit var settingsRepository: SettingsRepository
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var mediaButtonReceiver: BroadcastReceiver? = null
 
     inner class ArnoBinder : Binder() {
         val service: ArnoService get() = this@ArnoService
@@ -274,6 +277,9 @@ class ArnoService : Service() {
         // media button events to us (Oreo+ routes to last audio-playing app)
         requestAudioFocusForMediaButtons()
 
+        // Register a dynamic BroadcastReceiver as fallback for media button events
+        registerMediaButtonReceiver()
+
         Log.i(TAG, "MediaSession activated for Bluetooth trigger")
     }
 
@@ -340,10 +346,55 @@ class ArnoService : Service() {
         }
     }
 
+    private fun registerMediaButtonReceiver() {
+        if (mediaButtonReceiver != null) return
+        mediaButtonReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != Intent.ACTION_MEDIA_BUTTON) return
+                val keyEvent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
+                } ?: return
+
+                Log.i(TAG, "BroadcastReceiver got media button: keyCode=${keyEvent.keyCode} action=${keyEvent.action}")
+
+                val shouldHandle = MediaButtonHandler.shouldHandle(
+                    keyCode = keyEvent.keyCode,
+                    action = keyEvent.action,
+                    enabled = true,
+                )
+                if (shouldHandle) {
+                    Log.i(TAG, "BroadcastReceiver triggering voice input")
+                    triggerBluetoothVoiceInput()
+                    abortBroadcast()
+                }
+            }
+        }
+        val filter = IntentFilter(Intent.ACTION_MEDIA_BUTTON).apply {
+            priority = IntentFilter.SYSTEM_HIGH_PRIORITY
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mediaButtonReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(mediaButtonReceiver, filter)
+        }
+        Log.i(TAG, "Dynamic media button BroadcastReceiver registered")
+    }
+
+    private fun unregisterMediaButtonReceiver() {
+        mediaButtonReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+            mediaButtonReceiver = null
+        }
+    }
+
     private fun teardownMediaSession() {
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+        unregisterMediaButtonReceiver()
         releaseAudioFocus()
         Log.i(TAG, "MediaSession deactivated")
     }
