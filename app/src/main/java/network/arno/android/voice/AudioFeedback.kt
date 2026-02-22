@@ -19,6 +19,8 @@ class AudioFeedback {
         LISTEN_START(880, 100, ToneGenerator.TONE_PROP_BEEP),
         LISTEN_STOP(440, 150, ToneGenerator.TONE_PROP_ACK),
         WAKE_WORD_DETECTED(1200, 200, ToneGenerator.TONE_PROP_BEEP2),
+        /** Short rising tone confirming speech was captured, before acting on it. */
+        SPEECH_CAPTURED(660, 120, ToneGenerator.TONE_PROP_ACK),
     }
 
     // Use STREAM_MUSIC so tones route through Bluetooth audio (earphones/glasses)

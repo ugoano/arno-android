@@ -427,6 +427,8 @@ class ArnoService : Service() {
                 context = applicationContext,
                 onResult = { command, viaVoice ->
                     Log.i(TAG, "Bluetooth voice input result: $command")
+                    // Confirmation tone — "I heard you" before acting
+                    btAudioFeedback.play(AudioFeedback.Tone.SPEECH_CAPTURED)
                     chatRepository.addUserMessage(command, viaVoice)
                     webSocket.sendMessage(command, viaVoice)
                     // Clean up after single-shot capture
