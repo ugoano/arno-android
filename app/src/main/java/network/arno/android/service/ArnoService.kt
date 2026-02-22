@@ -19,7 +19,6 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.media.session.MediaButtonReceiver
 import kotlinx.coroutines.CoroutineScope
@@ -141,12 +140,6 @@ class ArnoService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Debug: log every intent received by the service
-        Log.i(TAG, "onStartCommand action=${intent?.action} extras=${intent?.extras?.keySet()}")
-        if (intent?.action == Intent.ACTION_MEDIA_BUTTON) {
-            Toast.makeText(this, "BT: Media button intent received!", Toast.LENGTH_SHORT).show()
-        }
-
         // Forward media button intents to the MediaSession
         mediaSession?.let { MediaButtonReceiver.handleIntent(it, intent) }
 
@@ -246,17 +239,12 @@ class ArnoService : Service() {
 
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
-                    Toast.makeText(this@ArnoService, "BT: MediaSession callback!", Toast.LENGTH_SHORT).show()
-                    Log.i(TAG, "MediaSession onMediaButtonEvent called")
-
                     val keyEvent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         mediaButtonEvent?.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
                     } else {
                         @Suppress("DEPRECATION")
                         mediaButtonEvent?.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
                     } ?: return super.onMediaButtonEvent(mediaButtonEvent)
-
-                    Toast.makeText(this@ArnoService, "BT: key=${keyEvent.keyCode} act=${keyEvent.action}", Toast.LENGTH_SHORT).show()
 
                     val shouldHandle = MediaButtonHandler.shouldHandle(
                         keyCode = keyEvent.keyCode,
@@ -293,7 +281,6 @@ class ArnoService : Service() {
         registerMediaButtonReceiver()
 
         Log.i(TAG, "MediaSession activated for Bluetooth trigger")
-        Toast.makeText(this, "BT Trigger: MediaSession active", Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -425,14 +412,12 @@ class ArnoService : Service() {
     private fun triggerBluetoothVoiceInput() {
         // Ensure we run on main thread — SpeechRecognizer requires it
         android.os.Handler(mainLooper).post {
-            Toast.makeText(this, "BT: triggerBluetoothVoiceInput called", Toast.LENGTH_SHORT).show()
             Log.i(TAG, "triggerBluetoothVoiceInput on thread=${Thread.currentThread().name}")
 
             btAudioFeedback.playDoubleBeep()
 
             // If already capturing from a BT trigger, stop the current one
             if (btVoiceInputManager != null) {
-                Toast.makeText(this, "BT: Cancelling existing capture", Toast.LENGTH_SHORT).show()
                 btVoiceInputManager?.destroy()
                 btVoiceInputManager = null
                 return@post
@@ -442,7 +427,6 @@ class ArnoService : Service() {
                 context = applicationContext,
                 onResult = { command, viaVoice ->
                     Log.i(TAG, "Bluetooth voice input result: $command")
-                    Toast.makeText(this, "BT result: $command", Toast.LENGTH_LONG).show()
                     chatRepository.addUserMessage(command, viaVoice)
                     webSocket.sendMessage(command, viaVoice)
                     // Clean up after single-shot capture
@@ -451,7 +435,6 @@ class ArnoService : Service() {
                 },
             )
             btVoiceInputManager?.start(VoiceMode.PUSH_TO_TALK)
-            Toast.makeText(this, "BT: VoiceInputManager started (PTT)", Toast.LENGTH_SHORT).show()
         }
     }
 
