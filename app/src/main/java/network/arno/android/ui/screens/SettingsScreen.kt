@@ -15,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import network.arno.android.settings.SettingsRepository
 import network.arno.android.settings.SettingsViewModel
 import network.arno.android.BuildConfig
 import network.arno.android.transport.ArnoWebSocket
 import network.arno.android.transport.ConnectionState
 import network.arno.android.ui.theme.*
 import network.arno.android.voice.VoiceMode
+import kotlin.math.roundToLong
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,6 +163,81 @@ fun SettingsScreen(
                 ),
             )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Silence Timeout", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "How long to wait for silence before ending speech recognition",
+            style = MaterialTheme.typography.bodySmall,
+            color = JarvisTextSecondary,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val screenTimeout by settingsViewModel.silenceTimeoutScreen.collectAsState()
+        var screenSliderValue by remember { mutableFloatStateOf(screenTimeout.toFloat()) }
+        LaunchedEffect(screenTimeout) { screenSliderValue = screenTimeout.toFloat() }
+
+        Text(
+            text = "Screen Tap: ${String.format("%.1f", screenSliderValue / 1000)}s",
+            style = MaterialTheme.typography.bodyMedium,
+            color = JarvisText,
+        )
+        Slider(
+            value = screenSliderValue,
+            onValueChange = { screenSliderValue = it },
+            onValueChangeFinished = {
+                val rounded = (screenSliderValue / 500).roundToLong() * 500
+                settingsViewModel.setSilenceTimeoutScreen(rounded)
+            },
+            valueRange = 1500f..10000f,
+            colors = SliderDefaults.colors(
+                thumbColor = JarvisCyan,
+                activeTrackColor = JarvisCyan,
+                inactiveTrackColor = JarvisBorder,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = "Default: ${SettingsRepository.DEFAULT_SILENCE_TIMEOUT_SCREEN / 1000.0}s",
+            style = MaterialTheme.typography.labelSmall,
+            color = JarvisTextSecondary,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val btTimeout by settingsViewModel.silenceTimeoutBt.collectAsState()
+        var btSliderValue by remember { mutableFloatStateOf(btTimeout.toFloat()) }
+        LaunchedEffect(btTimeout) { btSliderValue = btTimeout.toFloat() }
+
+        Text(
+            text = "Bluetooth / Glasses: ${String.format("%.1f", btSliderValue / 1000)}s",
+            style = MaterialTheme.typography.bodyMedium,
+            color = JarvisText,
+        )
+        Slider(
+            value = btSliderValue,
+            onValueChange = { btSliderValue = it },
+            onValueChangeFinished = {
+                val rounded = (btSliderValue / 500).roundToLong() * 500
+                settingsViewModel.setSilenceTimeoutBt(rounded)
+            },
+            valueRange = 1500f..10000f,
+            colors = SliderDefaults.colors(
+                thumbColor = JarvisCyan,
+                activeTrackColor = JarvisCyan,
+                inactiveTrackColor = JarvisBorder,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = "Default: ${SettingsRepository.DEFAULT_SILENCE_TIMEOUT_BT / 1000.0}s",
+            style = MaterialTheme.typography.labelSmall,
+            color = JarvisTextSecondary,
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 

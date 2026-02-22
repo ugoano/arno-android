@@ -13,6 +13,7 @@ import network.arno.android.chat.ChatViewModel
 import network.arno.android.ui.components.ConnectionBanner
 import network.arno.android.ui.components.InputBar
 import network.arno.android.ui.components.MessageBubble
+import network.arno.android.voice.VoiceInputManager
 import network.arno.android.voice.VoiceMode
 
 @Composable
@@ -20,6 +21,7 @@ fun ChatScreen(
     viewModel: ChatViewModel,
     onRequestMicPermission: () -> Unit,
     voiceMode: VoiceMode = VoiceMode.PUSH_TO_TALK,
+    silenceTimeoutMs: Long = VoiceInputManager.DEFAULT_SILENCE_TIMEOUT_MS,
 ) {
     val messages by viewModel.messages.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
@@ -59,6 +61,7 @@ fun ChatScreen(
             isProcessing = isProcessing,
             onRequestMicPermission = onRequestMicPermission,
             voiceMode = voiceMode,
+            silenceTimeoutMs = silenceTimeoutMs,
             attachments = attachments,
             onAttachClick = { filePickerLauncher.launch("*/*") },
             onRemoveAttachment = { uri -> viewModel.removeAttachment(uri) },

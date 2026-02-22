@@ -24,6 +24,12 @@ class SettingsViewModel(
     private val _bluetoothTriggerEnabled = MutableStateFlow(settingsRepository.bluetoothTriggerEnabled)
     val bluetoothTriggerEnabled: StateFlow<Boolean> = _bluetoothTriggerEnabled
 
+    private val _silenceTimeoutScreen = MutableStateFlow(settingsRepository.silenceTimeoutScreen)
+    val silenceTimeoutScreen: StateFlow<Long> = _silenceTimeoutScreen
+
+    private val _silenceTimeoutBt = MutableStateFlow(settingsRepository.silenceTimeoutBt)
+    val silenceTimeoutBt: StateFlow<Long> = _silenceTimeoutBt
+
     fun updateServerUrl(url: String) {
         settingsRepository.serverUrl = url
         _serverUrl.value = url
@@ -46,6 +52,16 @@ class SettingsViewModel(
         settingsRepository.bluetoothTriggerEnabled = newValue
         _bluetoothTriggerEnabled.value = newValue
         return newValue
+    }
+
+    fun setSilenceTimeoutScreen(millis: Long) {
+        settingsRepository.silenceTimeoutScreen = millis
+        _silenceTimeoutScreen.value = millis
+    }
+
+    fun setSilenceTimeoutBt(millis: Long) {
+        settingsRepository.silenceTimeoutBt = millis
+        _silenceTimeoutBt.value = millis
     }
 
     fun cycleVoiceMode(): VoiceMode {

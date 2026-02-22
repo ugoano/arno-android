@@ -211,6 +211,7 @@ class ArnoService : Service() {
                 chatRepository.addUserMessage(command, viaVoice)
                 webSocket.sendMessage(command, viaVoice)
             },
+            silenceTimeoutMs = settingsRepository.silenceTimeoutScreen,
         )
         voiceInputManager?.start(VoiceMode.WAKE_WORD)
         updateNotification(buildStatusText())
@@ -437,6 +438,7 @@ class ArnoService : Service() {
                     btVoiceInputManager?.destroy()
                     btVoiceInputManager = null
                 },
+                silenceTimeoutMs = settingsRepository.silenceTimeoutBt,
             )
             btVoiceInputManager?.start(VoiceMode.PUSH_TO_TALK)
         }

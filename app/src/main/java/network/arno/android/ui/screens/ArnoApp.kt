@@ -92,6 +92,7 @@ fun ArnoApp(
     val speechEnabled by settingsViewModel.speechEnabled.collectAsState()
     val voiceMode by settingsViewModel.voiceMode.collectAsState()
     val bluetoothTriggerEnabled by settingsViewModel.bluetoothTriggerEnabled.collectAsState()
+    val silenceTimeoutScreen by settingsViewModel.silenceTimeoutScreen.collectAsState()
     val context = LocalContext.current
 
     // Notify the foreground service when voice mode changes
@@ -247,6 +248,7 @@ fun ArnoApp(
                     viewModel = chatViewModel,
                     onRequestMicPermission = onRequestMicPermission,
                     voiceMode = voiceMode,
+                    silenceTimeoutMs = silenceTimeoutScreen,
                 )
             }
             composable("sessions") {

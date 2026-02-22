@@ -23,10 +23,12 @@ class VoiceInputManager(
     private val context: Context,
     private val onResult: (text: String, viaVoice: Boolean) -> Unit,
     private val onTextAccumulated: ((text: String) -> Unit)? = null,
+    private val silenceTimeoutMs: Long = DEFAULT_SILENCE_TIMEOUT_MS,
 ) {
     companion object {
         private const val TAG = "VoiceInputManager"
         private const val PTT_MAX_RETRIES = 1
+        const val DEFAULT_SILENCE_TIMEOUT_MS = 4000L
         private val PTT_RETRYABLE_ERRORS = setOf(
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
             SpeechRecognizer.ERROR_CLIENT,
@@ -71,11 +73,10 @@ class VoiceInputManager(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-GB")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            // For continuous modes, request longer speech timeout
-            if (currentMode != VoiceMode.PUSH_TO_TALK) {
-                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
-                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
-            }
+            // Apply configurable silence timeout for all modes
+            val possiblyComplete = (silenceTimeoutMs * 0.6).toLong()
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, possiblyComplete)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, silenceTimeoutMs)
         }
     }
 

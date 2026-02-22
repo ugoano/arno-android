@@ -41,6 +41,7 @@ fun InputBar(
     isProcessing: Boolean,
     onRequestMicPermission: () -> Unit,
     voiceMode: VoiceMode,
+    silenceTimeoutMs: Long = VoiceInputManager.DEFAULT_SILENCE_TIMEOUT_MS,
     attachments: List<Attachment>,
     onAttachClick: () -> Unit,
     onRemoveAttachment: (android.net.Uri) -> Unit,
@@ -49,7 +50,7 @@ fun InputBar(
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
 
-    val voiceInputManager = remember {
+    val voiceInputManager = remember(silenceTimeoutMs) {
         VoiceInputManager(
             context = context,
             onResult = { transcript, viaVoice ->
@@ -59,6 +60,7 @@ fun InputBar(
                 // Dictation mode: append to text field, user sends manually
                 text = if (text.isBlank()) transcript else "$text $transcript"
             },
+            silenceTimeoutMs = silenceTimeoutMs,
         )
     }
 

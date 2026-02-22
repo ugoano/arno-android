@@ -11,7 +11,11 @@ class SettingsRepository(context: Context) {
         private const val KEY_SPEECH_ENABLED = "speech_enabled"
         private const val KEY_VOICE_MODE = "voice_mode"
         private const val KEY_BLUETOOTH_TRIGGER = "bluetooth_trigger_enabled"
+        private const val KEY_SILENCE_TIMEOUT_SCREEN = "silence_timeout_screen"
+        private const val KEY_SILENCE_TIMEOUT_BT = "silence_timeout_bt"
         private const val DEFAULT_SERVER_URL = "https://chat.arno.network"
+        const val DEFAULT_SILENCE_TIMEOUT_SCREEN = 4000L
+        const val DEFAULT_SILENCE_TIMEOUT_BT = 2000L
     }
 
     private val prefs: SharedPreferences =
@@ -32,4 +36,12 @@ class SettingsRepository(context: Context) {
     var bluetoothTriggerEnabled: Boolean
         get() = prefs.getBoolean(KEY_BLUETOOTH_TRIGGER, true)
         set(value) = prefs.edit().putBoolean(KEY_BLUETOOTH_TRIGGER, value).apply()
+
+    var silenceTimeoutScreen: Long
+        get() = prefs.getLong(KEY_SILENCE_TIMEOUT_SCREEN, DEFAULT_SILENCE_TIMEOUT_SCREEN)
+        set(value) = prefs.edit().putLong(KEY_SILENCE_TIMEOUT_SCREEN, value).apply()
+
+    var silenceTimeoutBt: Long
+        get() = prefs.getLong(KEY_SILENCE_TIMEOUT_BT, DEFAULT_SILENCE_TIMEOUT_BT)
+        set(value) = prefs.edit().putLong(KEY_SILENCE_TIMEOUT_BT, value).apply()
 }
