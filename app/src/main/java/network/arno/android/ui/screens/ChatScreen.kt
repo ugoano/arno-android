@@ -60,7 +60,7 @@ fun ChatScreen(
             onRequestMicPermission = onRequestMicPermission,
             voiceMode = voiceMode,
             attachments = attachments,
-            onAttachClick = { filePickerLauncher.launch("image/*") },
+            onAttachClick = { filePickerLauncher.launch("*/*") },
             onRemoveAttachment = { uri -> viewModel.removeAttachment(uri) },
         )
     }
