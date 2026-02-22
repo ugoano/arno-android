@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import network.arno.android.sessions.Session
 import network.arno.android.sessions.SessionsViewModel
 import network.arno.android.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -38,6 +40,14 @@ fun SessionsScreen(viewModel: SessionsViewModel) {
     var editTitle by remember { mutableStateOf("") }
     var showNewSessionDialog by remember { mutableStateOf(false) }
     var newSessionTitle by remember { mutableStateOf("") }
+
+    // Auto-refresh sessions list while this tab is visible
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(10_000)
+            viewModel.refresh()
+        }
+    }
 
     // Show error as snackbar
     val snackbarHostState = remember { SnackbarHostState() }
