@@ -10,6 +10,7 @@ import android.view.KeyEvent
  * - KEYCODE_HEADSETHOOK: Ray-Ban Meta temple tap, most BT headsets
  * - KEYCODE_MEDIA_PLAY: some BT devices send this on single press
  * - KEYCODE_MEDIA_PLAY_PAUSE: some BT devices send this variant
+ * - KEYCODE_MEDIA_PAUSE: Pixel Buds and some BT earphones
  */
 object MediaButtonHandler {
 
@@ -17,6 +18,7 @@ object MediaButtonHandler {
         KeyEvent.KEYCODE_HEADSETHOOK,
         KeyEvent.KEYCODE_MEDIA_PLAY,
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+        KeyEvent.KEYCODE_MEDIA_PAUSE,
     )
 
     /**

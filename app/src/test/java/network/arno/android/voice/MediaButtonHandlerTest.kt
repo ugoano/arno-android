@@ -40,6 +40,17 @@ class MediaButtonHandlerTest {
     }
 
     @Test
+    fun `shouldHandle returns true for KEYCODE_MEDIA_PAUSE ACTION_DOWN when enabled`() {
+        assertTrue(
+            MediaButtonHandler.shouldHandle(
+                keyCode = KeyEvent.KEYCODE_MEDIA_PAUSE,
+                action = KeyEvent.ACTION_DOWN,
+                enabled = true,
+            )
+        )
+    }
+
+    @Test
     fun `shouldHandle returns false for ACTION_UP`() {
         assertFalse(
             MediaButtonHandler.shouldHandle(
@@ -111,6 +122,7 @@ class MediaButtonHandlerTest {
         assertTrue(accepted.contains(KeyEvent.KEYCODE_HEADSETHOOK))
         assertTrue(accepted.contains(KeyEvent.KEYCODE_MEDIA_PLAY))
         assertTrue(accepted.contains(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
-        assertEquals(3, accepted.size)
+        assertTrue(accepted.contains(KeyEvent.KEYCODE_MEDIA_PAUSE))
+        assertEquals(4, accepted.size)
     }
 }
