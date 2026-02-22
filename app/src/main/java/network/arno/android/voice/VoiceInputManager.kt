@@ -3,6 +3,8 @@ package network.arno.android.voice
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -24,11 +26,18 @@ class VoiceInputManager(
 ) {
     companion object {
         private const val TAG = "VoiceInputManager"
+        private const val PTT_MAX_RETRIES = 1
+        private val PTT_RETRYABLE_ERRORS = setOf(
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+            SpeechRecognizer.ERROR_CLIENT,
+        )
     }
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val audioFeedback = AudioFeedback(context)
 
     private var speechRecognizer: SpeechRecognizer? = null
+    private var pttRetryCount = 0
     private var currentMode: VoiceMode = VoiceMode.PUSH_TO_TALK
 
     private val _isListening = MutableStateFlow(false)
@@ -90,6 +99,13 @@ class VoiceInputManager(
             if (shouldRestart && error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
                 // ERROR_NO_MATCH (7) and ERROR_SPEECH_TIMEOUT (6) are normal in continuous mode
                 restartListening()
+            } else if (currentMode == VoiceMode.PUSH_TO_TALK
+                && pttRetryCount < PTT_MAX_RETRIES
+                && error in PTT_RETRYABLE_ERRORS) {
+                // Retry once for transient errors (e.g. recogniser busy from rapid destroy/create)
+                pttRetryCount++
+                Log.i(TAG, "PTT transient error ($error), retrying (attempt ${pttRetryCount + 1})")
+                mainHandler.postDelayed({ retryPushToTalk() }, 200)
             }
         }
 
@@ -170,6 +186,17 @@ class VoiceInputManager(
         }
     }
 
+    private fun retryPushToTalk() {
+        if (currentMode != VoiceMode.PUSH_TO_TALK) return
+        try {
+            val recognizer = createRecognizer()
+            recognizer.setRecognitionListener(recognitionListener)
+            recognizer.startListening(buildIntent())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to retry PTT", e)
+        }
+    }
+
     /**
      * Start listening in the given mode.
      * For PUSH_TO_TALK: single shot.
@@ -184,6 +211,7 @@ class VoiceInputManager(
         currentMode = mode
         shouldRestart = mode != VoiceMode.PUSH_TO_TALK
         pendingSingleCapture = false
+        pttRetryCount = 0
         _isContinuousActive.value = shouldRestart
         _partialText.value = ""
 
