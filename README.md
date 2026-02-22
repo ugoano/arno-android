@@ -42,6 +42,7 @@ The phone offers capabilities that browser tabs and terminal sessions cannot rel
 - Heartbeat every 30s (matching bridge's `HEARTBEAT_INTERVAL`)
 - Auto-reconnect with exponential backoff (1s → 2s → 4s → ... → 30s max)
 - Deterministic `client_id` from `Build.MODEL` (prevents stale registry accumulation)
+- `connection_lost` synthetic message on WebSocket failure (resets processing UI state)
 
 ### Command Execution
 | Command | Android API | Priority |
@@ -52,11 +53,44 @@ The phone offers capabilities that browser tabs and terminal sessions cannot rel
 | `open_link` | `Intent(ACTION_VIEW)` | 2 |
 | `notification` | `NotificationCompat.Builder` | 1 (preferred) |
 
+### Voice Input
+Three speech-to-text modes via Android `SpeechRecognizer`:
+
+| Mode | Behaviour |
+|------|-----------|
+| **Push-to-talk** | Tap mic, speak, auto-send on silence |
+| **Dictation** | Continuous listening, each phrase auto-sends |
+| **Wake word** | Always listening for "Arno"/"Jarvis" — sends command portion |
+
+Wake word supports both inline commands ("Arno, check my calendar") and bare activation ("Arno" → listens for follow-up → auto-sends).
+
+### Audio Feedback
+Custom WAV activation tones routed through `MediaPlayer` for Bluetooth audio compatibility:
+
+| Tone | Method | When |
+|------|--------|------|
+| `LISTEN_START` | Custom WAV (`res/raw/bt_activation.wav`) | Voice activation (any mode) |
+| `WAKE_WORD_DETECTED` | Custom WAV | Wake word recognised |
+| `LISTEN_STOP` | ToneGenerator | Voice deactivated (guarded — only plays when actually listening) |
+| `SPEECH_CAPTURED` | ToneGenerator | Speech captured before processing |
+
+All tones route through `STREAM_MUSIC` for Bluetooth earphone/glasses audio output.
+
+### Bluetooth Trigger
+Media button voice trigger via `MediaSession` in foreground service:
+- Tap Ray-Ban Meta temple or any BT media button to start voice input
+- Works with the phone locked (foreground service)
+- Plays custom WAV activation tone through BT audio
+- Configurable via Settings toggle
+
 ### Chat Interface
 - Streaming response rendering (accumulates `content_delta` messages)
 - Markdown rendering via Markwon
 - Tool call display with tool name badges
+- File/image upload with multipart POST to bridge
+- Non-image attachment rendering (paperclip icon + filename for audio, PDF, ZIP)
 - Connection status banner with colour-coded indicator
+- Connection resilience — `connection_lost` resets processing state on WebSocket failure
 - Dark theme matching the web client aesthetic
 - Auto-scroll to latest message
 
@@ -74,28 +108,36 @@ app/src/main/java/network/arno/android/
 ├── AppContainer.kt             # Manual DI container
 ├── MainActivity.kt             # Single-activity entry point
 ├── transport/
-│   ├── ArnoWebSocket.kt        # OkHttp WebSocket with reconnection
+│   ├── ArnoWebSocket.kt        # OkHttp WebSocket with reconnection + connection_lost emission
 │   ├── MessageTypes.kt         # Serializable protocol data classes
 │   └── ConnectionState.kt      # Sealed class for connection states
 ├── service/
-│   └── ArnoService.kt          # Foreground service (owns WebSocket)
+│   └── ArnoService.kt          # Foreground service (owns WebSocket, BT trigger via MediaSession)
 ├── command/
 │   ├── CommandExecutor.kt      # Dictionary-based command dispatch
 │   ├── SpeakHandler.kt         # Android TTS
 │   ├── ClipboardHandler.kt     # System clipboard read/write
 │   ├── LinkHandler.kt          # Intent-based URL opening
 │   └── NotificationHandler.kt  # System notifications
+├── voice/
+│   ├── VoiceInputManager.kt    # 3-mode voice input (push-to-talk, dictation, wake word)
+│   ├── VoiceMode.kt            # Enum: PUSH_TO_TALK, DICTATION, WAKE_WORD
+│   ├── AudioFeedback.kt        # Custom WAV (MediaPlayer) + ToneGenerator dual-path audio
+│   └── WakeWordDetector.kt     # "Arno"/"Jarvis" wake word extraction
 ├── chat/
 │   ├── ChatMessage.kt          # Message data class
-│   ├── ChatRepository.kt       # Message state + streaming accumulation
+│   ├── ChatRepository.kt       # Message state + streaming + connection_lost handling
 │   └── ChatViewModel.kt        # UI state management
 ├── settings/
 │   ├── SettingsRepository.kt   # SharedPreferences persistence
-│   └── SettingsViewModel.kt    # Settings UI state
+│   └── SettingsViewModel.kt    # Settings UI state (voice mode, BT trigger)
 └── ui/
     ├── theme/                  # Material3 dark theme
     ├── screens/                # ChatScreen, SettingsScreen, ArnoApp
-    └── components/             # MessageBubble, InputBar, ConnectionBanner
+    └── components/             # MessageBubble (image + file rendering), InputBar, ConnectionBanner
+
+app/src/main/res/raw/
+└── bt_activation.wav           # Custom WAV activation tone (trimmed, 0.88s)
 ```
 
 ## Dependencies
@@ -108,6 +150,7 @@ app/src/main/java/network/arno/android/
 | Material3 | Design system |
 | Navigation Compose | Screen routing |
 | Markwon 4.6 | Markdown rendering |
+| Coil 2.x | Image loading (AsyncImage for attachment previews) |
 | kotlinx-coroutines | Async operations |
 
 ## Building

@@ -5,73 +5,73 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Left wing — subtle fill -->
+    <!-- Left wing — subtle fill (stronger opacity for visual weight) -->
     <path
-        android:fillColor="#19FFD700"
-        android:strokeColor="#2A2A3A"
-        android:strokeWidth="0.6"
+        android:fillColor="#33FFD700"
+        android:strokeColor="#3A3A4A"
+        android:strokeWidth="0.8"
         android:strokeLineJoin="round"
-        android:pathData="M54,48 L24,30 L24,66 Z" />
+        android:pathData="M54,54 L32,39 L32,69 Z" />
 
     <!-- Left A — leg top -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="2.2"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:pathData="M54,48 L24,30" />
+        android:pathData="M54,54 L32,39" />
 
     <!-- Left A — leg bottom -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="2.2"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:pathData="M54,48 L24,66" />
+        android:pathData="M54,54 L32,69" />
 
     <!-- Left A — crossbar at midpoint -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="1.2"
-        android:pathData="M39,39 L39,57" />
+        android:strokeWidth="1.8"
+        android:pathData="M43,46.5 L43,61.5" />
 
-    <!-- Right wing — subtle fill -->
+    <!-- Right wing — subtle fill (stronger opacity for visual weight) -->
     <path
-        android:fillColor="#19FFD700"
-        android:strokeColor="#2A2A3A"
-        android:strokeWidth="0.6"
+        android:fillColor="#33FFD700"
+        android:strokeColor="#3A3A4A"
+        android:strokeWidth="0.8"
         android:strokeLineJoin="round"
-        android:pathData="M54,48 L84,30 L84,66 Z" />
+        android:pathData="M54,54 L76,39 L76,69 Z" />
 
     <!-- Right A — leg top -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="2.2"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:pathData="M54,48 L84,30" />
+        android:pathData="M54,54 L76,39" />
 
     <!-- Right A — leg bottom -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="2.2"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:pathData="M54,48 L84,66" />
+        android:pathData="M54,54 L76,69" />
 
     <!-- Right A — crossbar at midpoint -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFD700"
-        android:strokeWidth="1.2"
-        android:pathData="M69,39 L69,57" />
+        android:strokeWidth="1.8"
+        android:pathData="M65,46.5 L65,61.5" />
 
     <!-- Centre knot -->
     <path
         android:fillColor="#060610"
         android:strokeColor="#FFD700"
-        android:strokeWidth="0.7"
-        android:pathData="M54,48m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+        android:strokeWidth="1.0"
+        android:pathData="M54,54m-4.5,0a4.5,4.5 0,1 1,9 0a4.5,4.5 0,1 1,-9 0" />
 
 </vector>
