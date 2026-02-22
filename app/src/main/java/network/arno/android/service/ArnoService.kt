@@ -428,7 +428,7 @@ class ArnoService : Service() {
             Toast.makeText(this, "BT: triggerBluetoothVoiceInput called", Toast.LENGTH_SHORT).show()
             Log.i(TAG, "triggerBluetoothVoiceInput on thread=${Thread.currentThread().name}")
 
-            btAudioFeedback.play(AudioFeedback.Tone.WAKE_WORD_DETECTED)
+            btAudioFeedback.playDoubleBeep()
 
             // If already capturing from a BT trigger, stop the current one
             if (btVoiceInputManager != null) {
