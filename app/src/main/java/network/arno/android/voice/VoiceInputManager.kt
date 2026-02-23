@@ -92,6 +92,10 @@ class VoiceInputManager(
 
         override fun onEndOfSpeech() {
             _isListening.value = false
+            // For PTT, mark inactive immediately so toggle() won't see stale isActive
+            if (currentMode == VoiceMode.PUSH_TO_TALK) {
+                isActive = false
+            }
         }
 
         override fun onError(error: Int) {
@@ -252,7 +256,14 @@ class VoiceInputManager(
 
     /** Toggle: if currently active in given mode, stop. Otherwise start. */
     fun toggle(mode: VoiceMode) {
-        if (isActive || _isContinuousActive.value || _isListening.value) {
+        // For PTT: if recogniser reports not listening and not in a continuous mode,
+        // treat as inactive regardless of isActive flag (prevents stale state requiring double-tap)
+        val effectivelyActive = if (mode == VoiceMode.PUSH_TO_TALK) {
+            _isListening.value
+        } else {
+            isActive || _isContinuousActive.value || _isListening.value
+        }
+        if (effectivelyActive) {
             stop()
         } else {
             start(mode)
