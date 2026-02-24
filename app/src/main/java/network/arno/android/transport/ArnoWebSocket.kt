@@ -24,7 +24,8 @@ class ArnoWebSocket(
         private const val NORMAL_CLOSE_CODE = 1000
 
         val CAPABILITIES = listOf(
-            "speak", "clipboard_copy", "clipboard_paste", "open_link", "notification"
+            "speak", "clipboard_copy", "clipboard_paste", "open_link", "notification",
+            "close_tab", "device_control"
         )
 
         val PRIORITIES = mapOf(
@@ -33,6 +34,8 @@ class ArnoWebSocket(
             "clipboard_copy" to 2,
             "clipboard_paste" to 2,
             "open_link" to 2,
+            "close_tab" to 2,
+            "device_control" to 2,
         )
     }
 

@@ -24,6 +24,8 @@ class CommandExecutor(
     private val clipboardHandler = ClipboardHandler(context)
     private val linkHandler = LinkHandler(context)
     private val notificationHandler = NotificationHandler(context)
+    private val closeTabHandler = CloseTabHandler(context)
+    private val deviceControlHandler = DeviceControlHandler(context)
 
     private val handlers: Map<String, (JsonObject) -> HandlerResult> = mapOf(
         "speak" to speakHandler::handle,
@@ -31,6 +33,8 @@ class CommandExecutor(
         "clipboard_paste" to clipboardHandler::handlePaste,
         "open_link" to linkHandler::handle,
         "notification" to notificationHandler::handle,
+        "close_tab" to closeTabHandler::handle,
+        "device_control" to deviceControlHandler::handle,
     )
 
     fun execute(command: ClientCommand): CommandResponse {
