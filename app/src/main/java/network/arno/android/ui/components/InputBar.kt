@@ -64,6 +64,10 @@ fun InputBar(
         )
     }
 
+    LaunchedEffect(voiceInputManager) {
+        voiceInputManager.warmUp()
+    }
+
     val isListening by voiceInputManager.isListening.collectAsState()
     val isContinuousActive by voiceInputManager.isContinuousActive.collectAsState()
     val partialText by voiceInputManager.partialText.collectAsState()

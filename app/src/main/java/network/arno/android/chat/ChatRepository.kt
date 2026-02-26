@@ -2,6 +2,8 @@ package network.arno.android.chat
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -13,12 +15,14 @@ import network.arno.android.data.local.entity.MessageEntity
 import network.arno.android.data.local.entity.SessionEntity
 import network.arno.android.tasks.TasksRepository
 import network.arno.android.transport.IncomingMessage
+import network.arno.android.transport.ReconnectionReadyGate
 
 class ChatRepository(
     private val tasksRepository: TasksRepository,
     private val messageDao: MessageDao,
     private val sessionDao: SessionDao,
     private val scope: CoroutineScope,
+    private val reconnectionReadyGate: ReconnectionReadyGate,
 ) {
 
     companion object {
@@ -34,6 +38,7 @@ class ChatRepository(
     val isProcessing: StateFlow<Boolean> = _isProcessing
 
     private var currentSessionId: String = java.util.UUID.randomUUID().toString()
+    private var readyTimeoutJob: Job? = null
 
     init {
         scope.launch {
@@ -61,6 +66,8 @@ class ChatRepository(
     }
 
     fun handleIncoming(msg: IncomingMessage) {
+        flushTimedOutReadyIfNeeded()
+
         when (msg.type) {
             // Bridge sends "assistant" with message.content[] containing text and tool_use blocks
             "assistant" -> {
@@ -187,10 +194,10 @@ class ChatRepository(
                 val text = msg.content?.jsonPrimitive?.contentOrNull ?: return
                 // Skip "Processing..." status messages to avoid clutter
                 if (text == "Processing...") return
-                _messages.update { it + ChatMessage(
-                    role = ChatMessage.Role.SYSTEM,
-                    content = text,
-                )}
+                when (reconnectionReadyGate.onStatusMessage(text)) {
+                    ReconnectionReadyGate.StatusDecision.SHOW -> addSystemMessage(text)
+                    ReconnectionReadyGate.StatusDecision.SUPPRESS -> scheduleReadyTimeoutFlush()
+                }
             }
             "error", "stderr" -> {
                 val errorText = msg.content?.jsonPrimitive?.contentOrNull
@@ -210,6 +217,9 @@ class ChatRepository(
 
             // Bridge sends chat_history on reconnect/session switch
             "chat_history" -> {
+                readyTimeoutJob?.cancel()
+                readyTimeoutJob = null
+                reconnectionReadyGate.onChatHistoryReceived()
                 val messagesArray = msg.messages ?: return
                 Log.i(TAG, "Received chat_history with ${messagesArray.size} messages")
 
@@ -257,7 +267,32 @@ class ChatRepository(
         }
     }
 
+    private fun scheduleReadyTimeoutFlush() {
+        readyTimeoutJob?.cancel()
+        val delayMs = reconnectionReadyGate.timeoutRemainingMs() ?: return
+        readyTimeoutJob = scope.launch {
+            delay(delayMs)
+            flushTimedOutReadyIfNeeded()
+        }
+    }
+
+    private fun flushTimedOutReadyIfNeeded() {
+        val timedOutReady = reconnectionReadyGate.consumeTimedOutReadyMessage() ?: return
+        addSystemMessage(timedOutReady)
+    }
+
+    private fun addSystemMessage(text: String) {
+        _messages.update {
+            it + ChatMessage(
+                role = ChatMessage.Role.SYSTEM,
+                content = text,
+            )
+        }
+    }
+
     fun clear() {
+        readyTimeoutJob?.cancel()
+        readyTimeoutJob = null
         _messages.value = emptyList()
         _isProcessing.value = false
         // Start a new session

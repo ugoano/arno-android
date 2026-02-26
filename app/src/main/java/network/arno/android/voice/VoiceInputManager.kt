@@ -27,7 +27,8 @@ class VoiceInputManager(
 ) {
     companion object {
         private const val TAG = "VoiceInputManager"
-        private const val PTT_MAX_RETRIES = 1
+        private const val PTT_MAX_RETRIES = 2
+        private const val START_LISTEN_DELAY_MS = 200L
         const val DEFAULT_SILENCE_TIMEOUT_MS = 4000L
         private val PTT_RETRYABLE_ERRORS = setOf(
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
@@ -37,6 +38,7 @@ class VoiceInputManager(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val audioFeedback = AudioFeedback(context)
+    private val warmupState = VoiceWarmupState()
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var pttRetryCount = 0
@@ -80,6 +82,37 @@ class VoiceInputManager(
         }
     }
 
+    /**
+     * Pre-binds SpeechRecognizer service to avoid first-use cold start failures.
+     * Safe to call multiple times.
+     */
+    fun warmUp() {
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            Log.w(TAG, "Skipping warm-up: recognition not available")
+            return
+        }
+        if (!warmupState.beginWarmUp()) {
+            return
+        }
+
+        try {
+            if (speechRecognizer == null) {
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            }
+            speechRecognizer?.cancel()
+            warmupState.markWarmUpSuccess()
+            Log.d(TAG, "Speech recognizer warm-up complete")
+        } catch (e: Exception) {
+            warmupState.markWarmUpFailure()
+            Log.w(TAG, "Speech recognizer warm-up failed", e)
+            try {
+                speechRecognizer?.destroy()
+            } catch (_: Exception) {
+            }
+            speechRecognizer = null
+        }
+    }
+
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
             _isListening.value = true
@@ -110,7 +143,7 @@ class VoiceInputManager(
             } else if (currentMode == VoiceMode.PUSH_TO_TALK
                 && pttRetryCount < PTT_MAX_RETRIES
                 && error in PTT_RETRYABLE_ERRORS) {
-                // Retry once for transient errors (e.g. recogniser busy from rapid destroy/create)
+                // Retry for transient errors (e.g. recogniser busy from rapid destroy/create)
                 pttRetryCount++
                 Log.i(TAG, "PTT transient error ($error), retrying (attempt ${pttRetryCount + 1})")
                 mainHandler.postDelayed({ retryPushToTalk() }, 200)
@@ -229,9 +262,20 @@ class VoiceInputManager(
 
         audioFeedback.play(AudioFeedback.Tone.LISTEN_START)
 
-        val recognizer = createRecognizer()
-        recognizer.setRecognitionListener(recognitionListener)
-        recognizer.startListening(buildIntent())
+        mainHandler.postDelayed({
+            if (!isActive || currentMode != mode) return@postDelayed
+            try {
+                val recognizer = createRecognizer()
+                recognizer.setRecognitionListener(recognitionListener)
+                recognizer.startListening(buildIntent())
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start listening", e)
+                isActive = false
+                shouldRestart = false
+                _isContinuousActive.value = false
+                _isListening.value = false
+            }
+        }, START_LISTEN_DELAY_MS)
     }
 
     /** Stop all listening. */

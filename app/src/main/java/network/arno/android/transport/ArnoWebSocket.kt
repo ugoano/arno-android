@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 class ArnoWebSocket(
     private val serverUrl: String,
     private val onCommand: (ClientCommand) -> CommandResponse,
+    private val reconnectionReadyGate: ReconnectionReadyGate = ReconnectionReadyGate(),
 ) {
     companion object {
         private const val TAG = "ArnoWebSocket"
@@ -57,6 +58,7 @@ class ArnoWebSocket(
 
     private val _incomingMessages = MutableSharedFlow<IncomingMessage>(extraBufferCapacity = 64)
     val incomingMessages: SharedFlow<IncomingMessage> = _incomingMessages
+    val reconnectInProgress: StateFlow<Boolean> = reconnectionReadyGate.reconnectInProgress
 
     private var sessionId: String? = null
     var currentSessionId: String?
@@ -95,6 +97,7 @@ class ArnoWebSocket(
     fun connectToSession(targetSessionId: String) {
         pendingReconnectSessionId = targetSessionId
         currentSessionId = targetSessionId
+        reconnectionReadyGate.onReconnectStarted()
         connect()
     }
 
@@ -218,6 +221,7 @@ class ArnoWebSocket(
                     Log.i(TAG, "Session assigned: ${msg.sessionId}")
                 }
                 "chat_history" -> {
+                    reconnectionReadyGate.onChatHistoryReceived()
                     // Forward to ChatRepository for rendering
                     Log.i(TAG, "Received chat_history for session: ${msg.sessionId?.take(20)}")
                     scope.launch { _incomingMessages.emit(msg) }
@@ -244,6 +248,10 @@ class ArnoWebSocket(
     private fun scheduleReconnect() {
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
+            currentSessionId?.let { sessionId ->
+                pendingReconnectSessionId = sessionId
+                reconnectionReadyGate.onReconnectStarted()
+            }
             val delayS = calculateBackoff(reconnectAttempt)
             _connectionState.value = ConnectionState.Reconnecting(reconnectAttempt + 1)
             Log.i(TAG, "Reconnecting in ${delayS}s (attempt ${reconnectAttempt + 1})")

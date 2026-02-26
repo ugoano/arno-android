@@ -35,6 +35,7 @@ import network.arno.android.command.CommandExecutor
 import network.arno.android.settings.SettingsRepository
 import network.arno.android.transport.ArnoWebSocket
 import network.arno.android.transport.ConnectionState
+import network.arno.android.transport.ReconnectionReadyGate
 import network.arno.android.voice.AudioFeedback
 import network.arno.android.voice.MediaButtonHandler
 import network.arno.android.voice.VoiceInputManager
@@ -84,11 +85,13 @@ class ArnoService : Service() {
 
         val container = (application as ArnoApp).container
         settingsRepository = container.settingsRepository
+        val reconnectionReadyGate = ReconnectionReadyGate()
         chatRepository = ChatRepository(
             tasksRepository = container.tasksRepository,
             messageDao = container.database.messageDao(),
             sessionDao = container.database.sessionDao(),
             scope = serviceScope,
+            reconnectionReadyGate = reconnectionReadyGate,
         )
         commandExecutor = CommandExecutor(applicationContext, settingsRepository)
 
@@ -96,6 +99,7 @@ class ArnoService : Service() {
         webSocket = ArnoWebSocket(
             serverUrl = serverUrl,
             onCommand = { cmd -> commandExecutor.execute(cmd) },
+            reconnectionReadyGate = reconnectionReadyGate,
         )
 
         // Store references in app container for ViewModel access
@@ -213,6 +217,7 @@ class ArnoService : Service() {
             },
             silenceTimeoutMs = settingsRepository.silenceTimeoutScreen,
         )
+        voiceInputManager?.warmUp()
         voiceInputManager?.start(VoiceMode.WAKE_WORD)
         updateNotification(buildStatusText())
     }
@@ -440,6 +445,7 @@ class ArnoService : Service() {
                 },
                 silenceTimeoutMs = settingsRepository.silenceTimeoutBt,
             )
+            btVoiceInputManager?.warmUp()
             btVoiceInputManager?.start(VoiceMode.PUSH_TO_TALK)
         }
     }
