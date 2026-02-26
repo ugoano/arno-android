@@ -12,8 +12,10 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,6 +37,7 @@ import network.arno.android.chat.AttachmentManager
 import network.arno.android.chat.ChatRepository
 import network.arno.android.chat.ChatViewModel
 import network.arno.android.command.CommandExecutor
+import network.arno.android.schedules.SchedulesViewModel
 import network.arno.android.sessions.SessionsRepository
 import network.arno.android.sessions.SessionsViewModel
 import network.arno.android.settings.SettingsRepository
@@ -43,6 +46,7 @@ import network.arno.android.tasks.TasksRepository
 import network.arno.android.tasks.TasksViewModel
 import network.arno.android.transport.ArnoWebSocket
 import network.arno.android.voice.VoiceMode
+import network.arno.android.ArnoApp as ArnoApplication
 
 private enum class TopLevelRoute(
     val route: String,
@@ -53,6 +57,7 @@ private enum class TopLevelRoute(
     Chat("chat", "Chat", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat),
     Sessions("sessions", "Sessions", Icons.Filled.History, Icons.Outlined.History),
     Tasks("tasks", "Tasks", Icons.Filled.CheckCircle, Icons.Outlined.CheckCircle),
+    Schedules("schedules", "Schedules", Icons.Filled.Schedule, Icons.Outlined.Schedule),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +99,10 @@ fun ArnoApp(
     val bluetoothTriggerEnabled by settingsViewModel.bluetoothTriggerEnabled.collectAsState()
     val silenceTimeoutScreen by settingsViewModel.silenceTimeoutScreen.collectAsState()
     val context = LocalContext.current
+    val container = (context.applicationContext as ArnoApplication).container
+    val schedulesViewModel: SchedulesViewModel = viewModel(
+        factory = SchedulesViewModel.Factory(container.schedulesRepository)
+    )
 
     // Notify the foreground service when voice mode changes
     LaunchedEffect(voiceMode) {
@@ -115,6 +124,12 @@ fun ArnoApp(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == TopLevelRoute.Schedules.route) {
+            schedulesViewModel.refresh()
+        }
+    }
 
     // Badge: count of pending + running tasks
     val tasksSummary by tasksViewModel.summary.collectAsState()
@@ -256,6 +271,9 @@ fun ArnoApp(
             }
             composable("tasks") {
                 TasksScreen(viewModel = tasksViewModel)
+            }
+            composable("schedules") {
+                SchedulesScreen(viewModel = schedulesViewModel)
             }
             composable("settings") {
                 SettingsScreen(
