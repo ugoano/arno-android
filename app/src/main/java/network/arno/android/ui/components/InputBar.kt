@@ -31,6 +31,9 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import network.arno.android.chat.Attachment
 import network.arno.android.ui.theme.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import network.arno.android.voice.VoiceInputManager
 import network.arno.android.voice.VoiceMode
 
@@ -64,8 +67,15 @@ fun InputBar(
         )
     }
 
-    LaunchedEffect(voiceInputManager) {
-        voiceInputManager.warmUp()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, voiceInputManager) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                voiceInputManager.warmUp()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val isListening by voiceInputManager.isListening.collectAsState()

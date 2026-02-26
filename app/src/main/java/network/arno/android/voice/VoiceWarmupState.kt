@@ -23,4 +23,9 @@ class VoiceWarmupState {
     }
 
     fun isWarm(): Boolean = isWarm
+
+    fun reset() {
+        isWarm = false
+        warmUpInProgress = false
+    }
 }

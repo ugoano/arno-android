@@ -35,4 +35,19 @@ class VoiceWarmupStateTest {
         assertFalse(state.isWarm())
         assertTrue(state.beginWarmUp())
     }
+
+    @Test
+    fun `reset allows re-warmup after previous success`() {
+        val state = VoiceWarmupState()
+
+        assertTrue(state.beginWarmUp())
+        state.markWarmUpSuccess()
+        assertTrue(state.isWarm())
+        assertFalse(state.beginWarmUp())
+
+        state.reset()
+
+        assertFalse(state.isWarm())
+        assertTrue(state.beginWarmUp())
+    }
 }

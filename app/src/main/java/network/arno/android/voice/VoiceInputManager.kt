@@ -64,6 +64,7 @@ class VoiceInputManager(
 
     private fun createRecognizer(): SpeechRecognizer {
         speechRecognizer?.destroy()
+        warmupState.reset()
         return SpeechRecognizer.createSpeechRecognizer(context).also {
             speechRecognizer = it
         }
@@ -90,6 +91,10 @@ class VoiceInputManager(
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             Log.w(TAG, "Skipping warm-up: recognition not available")
             return
+        }
+        // If the recogniser was destroyed since last warmup, reset so we re-warm
+        if (warmupState.isWarm() && speechRecognizer == null) {
+            warmupState.reset()
         }
         if (!warmupState.beginWarmUp()) {
             return
