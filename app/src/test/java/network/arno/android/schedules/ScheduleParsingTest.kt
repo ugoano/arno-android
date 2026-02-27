@@ -53,4 +53,24 @@ class ScheduleParsingTest {
         assertNull(parsed.nextRun)
         assertNull(parsed.created)
     }
+
+    @Test
+    fun `coerces null values to defaults`() {
+        val coercingJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+        val payload = """
+            {
+              "id": "abc-789",
+              "command": "echo test",
+              "schedule": "0 7 * * *",
+              "description": null,
+              "enabled": true,
+              "last_run": null,
+              "next_run": null
+            }
+        """.trimIndent()
+        val parsed = coercingJson.decodeFromString<Schedule>(payload)
+        assertEquals("", parsed.description)
+        assertNull(parsed.lastRun)
+        assertNull(parsed.nextRun)
+    }
 }

@@ -14,7 +14,7 @@ open class SchedulesRepository(
     private val serverUrl: String,
 ) {
     private val client = OkHttpClient()
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     private val baseUrl = serverUrl.trimEnd('/')
 
     @Serializable
