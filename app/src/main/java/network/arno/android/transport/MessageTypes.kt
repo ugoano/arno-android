@@ -73,6 +73,8 @@ data class IncomingMessage(
     @SerialName("client_id") val clientId: String? = null,
     @SerialName("stop_reason") val stopReason: String? = null,
     val summary: JsonObject? = null,
+    val status: String? = null,
+    val subtype: String? = null,
 )
 
 @Serializable

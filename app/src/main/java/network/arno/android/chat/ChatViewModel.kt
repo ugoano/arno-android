@@ -21,6 +21,7 @@ class ChatViewModel(
     val isProcessing: StateFlow<Boolean> = chatRepository.isProcessing
     val connectionState: StateFlow<ConnectionState> = webSocket.connectionState
     val attachments: StateFlow<List<Attachment>> = attachmentManager.attachments
+    val isCompacting: StateFlow<Boolean> = chatRepository.isCompacting
 
     init {
         viewModelScope.launch {

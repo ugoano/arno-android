@@ -36,6 +36,8 @@ class ChatRepository(
 
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing
+    private val _isCompacting = MutableStateFlow(false)
+    val isCompacting: StateFlow<Boolean> = _isCompacting
 
     private var currentSessionId: String = java.util.UUID.randomUUID().toString()
     private var readyTimeoutJob: Job? = null
@@ -189,6 +191,19 @@ class ChatRepository(
                 Log.i(TAG, "Task cancelled")
             }
 
+            "compaction_status" -> {
+                when (msg.status) {
+                    "started" -> {
+                        _isCompacting.value = true
+                        Log.i(TAG, "Context compaction started")
+                    }
+                    "completed" -> {
+                        _isCompacting.value = false
+                        Log.i(TAG, "Context compaction completed")
+                    }
+                }
+            }
+
             // Status and error messages
             "system", "status" -> {
                 val text = msg.content?.jsonPrimitive?.contentOrNull ?: return
@@ -250,6 +265,7 @@ class ChatRepository(
                     }
                 }
                 _isProcessing.value = false
+                _isCompacting.value = false
                 Log.i(TAG, "Connection lost — reset processing state")
             }
 

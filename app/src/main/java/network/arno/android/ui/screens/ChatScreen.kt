@@ -5,8 +5,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import network.arno.android.chat.ChatViewModel
@@ -25,6 +27,7 @@ fun ChatScreen(
 ) {
     val messages by viewModel.messages.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val isCompacting by viewModel.isCompacting.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val attachments by viewModel.attachments.collectAsState()
     val listState = rememberLazyListState()
@@ -53,6 +56,14 @@ fun ChatScreen(
             items(messages, key = { it.id }) { message ->
                 MessageBubble(message = message)
             }
+        }
+
+        if (isCompacting) {
+            Text(
+                text = "Compacting context...",
+                color = Color(0xFFFFB300),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
 
         InputBar(
