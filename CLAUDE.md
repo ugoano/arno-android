@@ -16,6 +16,11 @@ Kotlin + Jetpack Compose Android app. Connects to CC Web Bridge (chat.arno.netwo
 - **New commands** → add handler class in `command/`, register in `CommandExecutor.handlers` map
 - **Streaming** → `ChatRepository.handleIncoming()` accumulates `content_delta` messages
 - **Connection resilience** → `ArnoWebSocket.onFailure` emits synthetic `connection_lost` message → `ChatRepository` resets `isProcessing` and finalises streaming
+- **Dual payload shapes** → Bridge sends two content formats: nested `message.content[]` and top-level `content[]`. `ChatRepository.extractContentBlocks()` handles both transparently.
+- **Room database** → `data/local/AppDatabase.kt` with `MessageDao` and `SessionDao` for local message persistence across app restarts. Entities: `MessageEntity`, `SessionEntity`.
+- **ReconnectionReadyGate** → `transport/ReconnectionReadyGate.kt` prevents WebSocket reconnection until chat history from previous session has been fully processed. Avoids duplicate/out-of-order messages.
+- **SharedFlow emission ordering** → `ArnoWebSocket.emitIncoming()` uses `tryEmit()` fast-path with `runBlocking` fallback (not `scope.launch`) to preserve message ordering under SharedFlow backpressure.
+- **Schedules tab** → `schedules/` package with `SchedulesScreen`, `SchedulesViewModel`, `SchedulesRepository`. Fetches and toggles schedules via bridge REST API (`/api/schedules`).
 
 ## Voice System
 - **VoiceInputManager** — 3 modes (PUSH_TO_TALK, DICTATION, WAKE_WORD) via Android `SpeechRecognizer`

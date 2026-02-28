@@ -109,8 +109,18 @@ app/src/main/java/network/arno/android/
 ├── MainActivity.kt             # Single-activity entry point
 ├── transport/
 │   ├── ArnoWebSocket.kt        # OkHttp WebSocket with reconnection + connection_lost emission
+│   ├── ReconnectionReadyGate.kt # Prevents reconnect until chat history is processed
 │   ├── MessageTypes.kt         # Serializable protocol data classes
 │   └── ConnectionState.kt      # Sealed class for connection states
+├── data/
+│   └── local/
+│       ├── AppDatabase.kt      # Room database (message + session persistence)
+│       ├── dao/
+│       │   ├── MessageDao.kt   # Message CRUD operations
+│       │   └── SessionDao.kt   # Session CRUD operations
+│       └── entity/
+│           ├── MessageEntity.kt # Room entity for chat messages
+│           └── SessionEntity.kt # Room entity for sessions
 ├── service/
 │   └── ArnoService.kt          # Foreground service (owns WebSocket, BT trigger via MediaSession)
 ├── command/
@@ -118,7 +128,9 @@ app/src/main/java/network/arno/android/
 │   ├── SpeakHandler.kt         # Android TTS
 │   ├── ClipboardHandler.kt     # System clipboard read/write
 │   ├── LinkHandler.kt          # Intent-based URL opening
-│   └── NotificationHandler.kt  # System notifications
+│   ├── NotificationHandler.kt  # System notifications
+│   ├── DeviceControlHandler.kt # Generic Intent launcher (device control)
+│   └── CloseTabHandler.kt      # Broadcasts ACTION_CLOSE_TAB for accessibility service
 ├── voice/
 │   ├── VoiceInputManager.kt    # 3-mode voice input (push-to-talk, dictation, wake word)
 │   ├── VoiceMode.kt            # Enum: PUSH_TO_TALK, DICTATION, WAKE_WORD
@@ -126,14 +138,18 @@ app/src/main/java/network/arno/android/
 │   └── WakeWordDetector.kt     # "Arno"/"Jarvis" wake word extraction
 ├── chat/
 │   ├── ChatMessage.kt          # Message data class
-│   ├── ChatRepository.kt       # Message state + streaming + connection_lost handling
+│   ├── ChatRepository.kt       # Message state + streaming + dual payload handling
 │   └── ChatViewModel.kt        # UI state management
+├── schedules/
+│   ├── Schedule.kt             # Schedule data class (kotlinx.serialization)
+│   ├── SchedulesRepository.kt  # Fetch/toggle schedules via bridge API
+│   └── SchedulesViewModel.kt   # Schedules tab UI state
 ├── settings/
 │   ├── SettingsRepository.kt   # SharedPreferences persistence
 │   └── SettingsViewModel.kt    # Settings UI state (voice mode, BT trigger)
 └── ui/
     ├── theme/                  # Material3 dark theme
-    ├── screens/                # ChatScreen, SettingsScreen, ArnoApp
+    ├── screens/                # ChatScreen, SettingsScreen, SchedulesScreen, ArnoApp
     └── components/             # MessageBubble (image + file rendering), InputBar, ConnectionBanner
 
 app/src/main/res/raw/
