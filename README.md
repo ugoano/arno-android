@@ -38,7 +38,7 @@ The phone offers capabilities that browser tabs and terminal sessions cannot rel
 
 ### Client Protocol
 - WebSocket connection to `wss://chat.arno.network/ws`
-- Client registration as `client_type: "android"` with 5 capabilities
+- Client registration as `client_type: "android"` with 18 capabilities
 - Heartbeat every 30s (matching bridge's `HEARTBEAT_INTERVAL`)
 - Auto-reconnect with exponential backoff (1s → 2s → 4s → ... → 30s max)
 - Deterministic `client_id` from `Build.MODEL` (prevents stale registry accumulation)
@@ -52,6 +52,20 @@ The phone offers capabilities that browser tabs and terminal sessions cannot rel
 | `clipboard_paste` | `ClipboardManager.getPrimaryClip()` | 2 |
 | `open_link` | `Intent(ACTION_VIEW)` | 2 |
 | `notification` | `NotificationCompat.Builder` | 1 (preferred) |
+| `close_tab` | Broadcast to AccessibilityService | 2 |
+| `device_control` | Generic Intent launcher | 2 |
+| `open_app` | PackageManager + fuzzy name match | 2 |
+| `list_apps` | PackageManager query | 2 |
+| `read_screen` | AccessibilityService | 2 |
+| `tap_element` | AccessibilityService | 2 |
+| `type_text` | AccessibilityService | 2 |
+| `navigate` | AccessibilityService (global actions) | 2 |
+| `scroll` | AccessibilityService | 2 |
+| `wake_screen` | PowerManager | 2 |
+| `play_sound` | MediaPlayer (URI or system tone) | 2 |
+| `stop_sound` | MediaPlayer.stop() | 2 |
+| `transfer_file` | Base64 decode + file write | 2 |
+| `open_file` | MediaStore query + Intent.ACTION_VIEW | 2 |
 
 ### Voice Input
 Three speech-to-text modes via Android `SpeechRecognizer`:
@@ -124,13 +138,28 @@ app/src/main/java/network/arno/android/
 ├── service/
 │   └── ArnoService.kt          # Foreground service (owns WebSocket, BT trigger via MediaSession)
 ├── command/
-│   ├── CommandExecutor.kt      # Dictionary-based command dispatch
+│   ├── CommandExecutor.kt      # Dictionary-based command dispatch (18 handlers)
 │   ├── SpeakHandler.kt         # Android TTS
 │   ├── ClipboardHandler.kt     # System clipboard read/write
 │   ├── LinkHandler.kt          # Intent-based URL opening
 │   ├── NotificationHandler.kt  # System notifications
 │   ├── DeviceControlHandler.kt # Generic Intent launcher (device control)
-│   └── CloseTabHandler.kt      # Broadcasts ACTION_CLOSE_TAB for accessibility service
+│   ├── CloseTabHandler.kt      # Broadcasts ACTION_CLOSE_TAB for accessibility service
+│   ├── AppLauncherHandler.kt   # App launcher with fuzzy name matching
+│   ├── AppLauncherMatcher.kt   # Pure matching logic (no Android deps)
+│   ├── ReadScreenHandler.kt    # Read screen via AccessibilityService
+│   ├── TapElementHandler.kt    # Tap UI elements by text/description
+│   ├── TypeTextHandler.kt      # Type into focused input fields
+│   ├── NavigateHandler.kt      # Back, home, recents via global actions
+│   ├── ScrollHandler.kt        # Scroll in any direction
+│   ├── WakeScreenHandler.kt    # Wake device via PowerManager
+│   ├── PlaySoundHandler.kt     # Audio playback via MediaPlayer (reactive StateFlows)
+│   ├── PlaySoundConfig.kt      # Volume config and validation
+│   ├── SoundType.kt            # Alarm, notification, ringtone enum
+│   ├── TransferFileHandler.kt  # Receive base64-encoded files
+│   ├── OpenFileHandler.kt      # Open files via MediaStore + Intent.ACTION_VIEW
+│   ├── OpenFilePayloadValidator.kt # Validates open_file payloads
+│   └── FilePathResolver.kt     # Path parsing for MediaStore queries
 ├── voice/
 │   ├── VoiceInputManager.kt    # 3-mode voice input (push-to-talk, dictation, wake word)
 │   ├── VoiceMode.kt            # Enum: PUSH_TO_TALK, DICTATION, WAKE_WORD
@@ -148,9 +177,9 @@ app/src/main/java/network/arno/android/
 │   ├── SettingsRepository.kt   # SharedPreferences persistence
 │   └── SettingsViewModel.kt    # Settings UI state (voice mode, BT trigger)
 └── ui/
-    ├── theme/                  # Material3 dark theme
+    ├── theme/                  # Material3 dark theme (JARVIS palette)
     ├── screens/                # ChatScreen, SettingsScreen, SchedulesScreen, ArnoApp
-    └── components/             # MessageBubble (image + file rendering), InputBar, ConnectionBanner
+    └── components/             # MessageBubble, InputBar, ConnectionBanner, FloatingAudioControl
 
 app/src/main/res/raw/
 └── bt_activation.wav           # Custom WAV activation tone (trimmed, 0.88s)
@@ -226,7 +255,7 @@ After installing, verify the client is registered:
 curl https://chat.arno.network/api/clients | jq .
 ```
 
-You should see an entry with `client_type: "android"` and all 5 capabilities listed.
+You should see an entry with `client_type: "android"` and all 18 capabilities listed.
 
 ## Related
 

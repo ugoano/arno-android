@@ -21,6 +21,9 @@ Kotlin + Jetpack Compose Android app. Connects to CC Web Bridge (chat.arno.netwo
 - **ReconnectionReadyGate** → `transport/ReconnectionReadyGate.kt` prevents WebSocket reconnection until chat history from previous session has been fully processed. Avoids duplicate/out-of-order messages.
 - **SharedFlow emission ordering** → `ArnoWebSocket.emitIncoming()` uses `tryEmit()` fast-path with `runBlocking` fallback (not `scope.launch`) to preserve message ordering under SharedFlow backpressure.
 - **Schedules tab** → `schedules/` package with `SchedulesScreen`, `SchedulesViewModel`, `SchedulesRepository`. Fetches and toggles schedules via bridge REST API (`/api/schedules`).
+- **Floating audio control** → `FloatingAudioControl.kt` composable in `ui/components/`. Observes `PlaySoundHandler.isPlaying`, `hasActivePlayerFlow`, and `volume` StateFlows. Overlaid on `ArnoApp` via Box + Alignment.BottomCenter. Uses AnimatedVisibility with slide + fade.
+- **PlaySoundHandler reactive state** → `isPlaying` (StateFlow<Boolean>), `hasActivePlayerFlow` (StateFlow<Boolean>), `volume` (StateFlow<Float>). UI methods: `togglePause()`, `setVolume(Float)`. Public via `CommandExecutor.playSoundHandler`.
+- **File handlers** → `TransferFileHandler` (base64 decode + save), `OpenFileHandler` (MediaStore query across 4 collections + Intent.ACTION_VIEW), `WakeScreenHandler` (PowerManager wake lock).
 
 ## Voice System
 - **VoiceInputManager** — 3 modes (PUSH_TO_TALK, DICTATION, WAKE_WORD) via Android `SpeechRecognizer`
