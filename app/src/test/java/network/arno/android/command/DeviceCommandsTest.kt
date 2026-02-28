@@ -5,7 +5,8 @@ import org.junit.Test
 
 /**
  * Tests for extractable logic from WakeScreenHandler, PlaySoundHandler,
- * and TransferFileHandler. These test pure Kotlin logic without Android deps.
+ * TransferFileHandler, and OpenFileHandler. These test pure Kotlin logic
+ * without Android deps.
  */
 class DeviceCommandsTest {
 
@@ -197,5 +198,124 @@ class DeviceCommandsTest {
     @Test
     fun `default duration is negative one for play to completion`() {
         assertEquals(-1L, PlaySoundConfig.PLAY_TO_COMPLETION)
+    }
+
+    // ── FilePathResolver tests ──
+
+    @Test
+    fun `FilePathResolver splits path with directory`() {
+        val result = FilePathResolver.parse("Music/Iron_Man_Suit_Up.mp3")
+        assertEquals("Music", result.directory)
+        assertEquals("Iron_Man_Suit_Up.mp3", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver splits nested path`() {
+        val result = FilePathResolver.parse("Music/albums/song.mp3")
+        assertEquals("Music/albums", result.directory)
+        assertEquals("song.mp3", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver handles filename only`() {
+        val result = FilePathResolver.parse("photo.jpg")
+        assertEquals("", result.directory)
+        assertEquals("photo.jpg", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver handles path with trailing slash`() {
+        val result = FilePathResolver.parse("Download/")
+        assertEquals("Download", result.directory)
+        assertEquals("", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver handles empty path`() {
+        val result = FilePathResolver.parse("")
+        assertEquals("", result.directory)
+        assertEquals("", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver strips leading slash`() {
+        val result = FilePathResolver.parse("/Music/song.mp3")
+        assertEquals("Music", result.directory)
+        assertEquals("song.mp3", result.filename)
+    }
+
+    @Test
+    fun `FilePathResolver extracts MIME type from parsed filename`() {
+        val result = FilePathResolver.parse("Music/Iron_Man_Suit_Up.mp3")
+        assertEquals("audio/mpeg", MimeTypeResolver.fromFilename(result.filename))
+    }
+
+    @Test
+    fun `FilePathResolver validates path has filename`() {
+        assertTrue(FilePathResolver.hasFilename("Music/song.mp3"))
+        assertFalse(FilePathResolver.hasFilename("Music/"))
+        assertFalse(FilePathResolver.hasFilename(""))
+    }
+
+    // ── OpenFilePayloadValidator tests ──
+
+    @Test
+    fun `OpenFilePayloadValidator accepts path payload`() {
+        val result = OpenFilePayloadValidator.validate(path = "Music/song.mp3", uri = null)
+        assertTrue(result is OpenFileValidation.ValidPath)
+        val valid = result as OpenFileValidation.ValidPath
+        assertEquals("Music", valid.directory)
+        assertEquals("song.mp3", valid.filename)
+        assertEquals("audio/mpeg", valid.mimeType)
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator accepts uri payload`() {
+        val result = OpenFilePayloadValidator.validate(path = null, uri = "content://media/external/audio/123")
+        assertTrue(result is OpenFileValidation.ValidUri)
+        assertEquals("content://media/external/audio/123", (result as OpenFileValidation.ValidUri).uri)
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator rejects both missing`() {
+        val result = OpenFilePayloadValidator.validate(path = null, uri = null)
+        assertTrue(result is OpenFileValidation.Invalid)
+        assertTrue((result as OpenFileValidation.Invalid).reason.contains("path"))
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator prefers path when both provided`() {
+        val result = OpenFilePayloadValidator.validate(
+            path = "Music/song.mp3",
+            uri = "content://media/external/audio/123"
+        )
+        assertTrue(result is OpenFileValidation.ValidPath)
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator rejects path without filename`() {
+        val result = OpenFilePayloadValidator.validate(path = "Music/", uri = null)
+        assertTrue(result is OpenFileValidation.Invalid)
+        assertTrue((result as OpenFileValidation.Invalid).reason.contains("filename"))
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator rejects empty uri`() {
+        val result = OpenFilePayloadValidator.validate(path = null, uri = "")
+        assertTrue(result is OpenFileValidation.Invalid)
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator resolves MIME for image path`() {
+        val result = OpenFilePayloadValidator.validate(path = "Pictures/photo.png", uri = null)
+        assertTrue(result is OpenFileValidation.ValidPath)
+        assertEquals("image/png", (result as OpenFileValidation.ValidPath).mimeType)
+    }
+
+    @Test
+    fun `OpenFilePayloadValidator resolves MIME for pdf path`() {
+        val result = OpenFilePayloadValidator.validate(path = "Documents/report.pdf", uri = null)
+        assertTrue(result is OpenFileValidation.ValidPath)
+        assertEquals("application/pdf", (result as OpenFileValidation.ValidPath).mimeType)
     }
 }

@@ -35,6 +35,7 @@ class CommandExecutor(
     private val wakeScreenHandler = WakeScreenHandler(context)
     private val playSoundHandler = PlaySoundHandler(context)
     private val transferFileHandler = TransferFileHandler(context)
+    private val openFileHandler = OpenFileHandler(context)
 
     private val handlers: Map<String, (JsonObject) -> HandlerResult> = mapOf(
         "speak" to speakHandler::handle,
@@ -54,6 +55,7 @@ class CommandExecutor(
         "wake_screen" to wakeScreenHandler::handle,
         "play_sound" to playSoundHandler::handle,
         "transfer_file" to transferFileHandler::handle,
+        "open_file" to openFileHandler::handle,
     )
 
     fun execute(command: ClientCommand): CommandResponse {

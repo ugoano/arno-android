@@ -14,8 +14,8 @@ android {
         applicationId = "network.arno.android"
         minSdk = 29
         targetSdk = 35
-        versionCode = 41
-        versionName = "1.37.1"
+        versionCode = 42
+        versionName = "1.38.0"
     }
 
     buildTypes {

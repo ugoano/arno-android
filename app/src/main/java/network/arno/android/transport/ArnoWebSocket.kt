@@ -30,7 +30,7 @@ class ArnoWebSocket(
             "speak", "clipboard_copy", "clipboard_paste", "open_link", "notification",
             "close_tab", "device_control", "open_app", "list_apps",
             "read_screen", "tap_element", "type_text", "navigate", "scroll",
-            "wake_screen", "play_sound", "transfer_file"
+            "wake_screen", "play_sound", "transfer_file", "open_file"
         )
 
         val PRIORITIES = mapOf(
@@ -51,6 +51,7 @@ class ArnoWebSocket(
             "wake_screen" to 2,
             "play_sound" to 2,
             "transfer_file" to 2,
+            "open_file" to 2,
         )
     }
 
