@@ -31,6 +31,7 @@ class CommandExecutor(
     private val typeTextHandler = TypeTextHandler()
     private val navigateHandler = NavigateHandler()
     private val scrollHandler = ScrollHandler()
+    private val appLauncherHandler = AppLauncherHandler(context)
 
     private val handlers: Map<String, (JsonObject) -> HandlerResult> = mapOf(
         "speak" to speakHandler::handle,
@@ -45,6 +46,8 @@ class CommandExecutor(
         "type_text" to typeTextHandler::handle,
         "navigate" to navigateHandler::handle,
         "scroll" to scrollHandler::handle,
+        "open_app" to appLauncherHandler::handleOpenApp,
+        "list_apps" to appLauncherHandler::handleListApps,
     )
 
     fun execute(command: ClientCommand): CommandResponse {
