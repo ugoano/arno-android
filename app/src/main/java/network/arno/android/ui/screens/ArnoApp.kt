@@ -2,6 +2,7 @@ package network.arno.android.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +35,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import network.arno.android.ui.components.FloatingAudioControl
 import network.arno.android.chat.AttachmentManager
 import network.arno.android.chat.ChatRepository
 import network.arno.android.chat.ChatViewModel
@@ -135,9 +138,15 @@ fun ArnoApp(
     val tasksSummary by tasksViewModel.summary.collectAsState()
     val queueCount = tasksSummary?.let { it.pending + it.queued + it.running } ?: 0
 
+    // Audio playback state for floating control
+    val audioPlaying by commandExecutor.playSoundHandler.isPlaying.collectAsState()
+    val audioVolume by commandExecutor.playSoundHandler.volume.collectAsState()
+    val audioHasPlayer by commandExecutor.playSoundHandler.hasActivePlayerFlow.collectAsState()
+
     val topLevelRoutes = TopLevelRoute.entries
     val showBottomBar = currentRoute in topLevelRoutes.map { it.route }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             if (currentRoute != "settings") {
@@ -285,4 +294,18 @@ fun ArnoApp(
             }
         }
     }
+
+    // Floating audio control overlay — pinned above bottom nav
+    FloatingAudioControl(
+        isPlaying = audioPlaying,
+        hasActivePlayer = audioHasPlayer,
+        volume = audioVolume,
+        onTogglePause = { commandExecutor.playSoundHandler.togglePause() },
+        onStop = { commandExecutor.playSoundHandler.stop() },
+        onVolumeChange = { commandExecutor.playSoundHandler.setVolume(it) },
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 80.dp),
+    )
+    } // Box
 }

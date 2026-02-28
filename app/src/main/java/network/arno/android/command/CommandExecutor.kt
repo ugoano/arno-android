@@ -33,7 +33,7 @@ class CommandExecutor(
     private val scrollHandler = ScrollHandler()
     private val appLauncherHandler = AppLauncherHandler(context)
     private val wakeScreenHandler = WakeScreenHandler(context)
-    private val playSoundHandler = PlaySoundHandler(context)
+    val playSoundHandler = PlaySoundHandler(context)
     private val transferFileHandler = TransferFileHandler(context)
     private val openFileHandler = OpenFileHandler(context)
 
@@ -54,6 +54,7 @@ class CommandExecutor(
         "list_apps" to appLauncherHandler::handleListApps,
         "wake_screen" to wakeScreenHandler::handle,
         "play_sound" to playSoundHandler::handle,
+        "stop_sound" to playSoundHandler::handleStop,
         "transfer_file" to transferFileHandler::handle,
         "open_file" to openFileHandler::handle,
     )

@@ -9,6 +9,9 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.float
@@ -38,10 +41,20 @@ class PlaySoundHandler(private val context: Context) {
 
     private val handler = Handler(Looper.getMainLooper())
     private var currentPlayer: MediaPlayer? = null
+    private var currentVolume: Float = PlaySoundConfig.DEFAULT_VOLUME
+
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
+    private val _hasActivePlayer = MutableStateFlow(false)
+    val hasActivePlayerFlow: StateFlow<Boolean> = _hasActivePlayer.asStateFlow()
+
+    private val _volume = MutableStateFlow(PlaySoundConfig.DEFAULT_VOLUME)
+    val volume: StateFlow<Float> = _volume.asStateFlow()
 
     fun handle(payload: JsonObject): HandlerResult {
         // Stop any currently playing sound
-        stopCurrent()
+        stop()
 
         val typeStr = payload["type"]?.jsonPrimitive?.content
         val uriStr = payload["uri"]?.jsonPrimitive?.content
@@ -84,23 +97,35 @@ class PlaySoundHandler(private val context: Context) {
                 setVolume(volume, volume)
                 setOnCompletionListener { mp ->
                     mp.release()
-                    if (currentPlayer === mp) currentPlayer = null
+                    if (currentPlayer === mp) {
+                        currentPlayer = null
+                        _isPlaying.value = false
+                        _hasActivePlayer.value = false
+                    }
                 }
                 setOnErrorListener { mp, what, extra ->
                     Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
                     mp.release()
-                    if (currentPlayer === mp) currentPlayer = null
+                    if (currentPlayer === mp) {
+                        currentPlayer = null
+                        _isPlaying.value = false
+                        _hasActivePlayer.value = false
+                    }
                     true
                 }
                 prepare()
                 start()
             }
             currentPlayer = player
+            currentVolume = volume
+            _isPlaying.value = true
+            _hasActivePlayer.value = true
+            _volume.value = volume
 
             // Schedule stop if duration specified
             if (durationMs > 0) {
                 handler.postDelayed({
-                    stopCurrent()
+                    stop()
                 }, durationMs)
             }
 
@@ -127,7 +152,16 @@ class PlaySoundHandler(private val context: Context) {
         return RingtoneManager.getDefaultUri(ringtoneType)
     }
 
-    private fun stopCurrent() {
+    fun handleStop(@Suppress("UNUSED_PARAMETER") payload: JsonObject): HandlerResult {
+        val wasPlaying = currentPlayer?.isPlaying == true
+        stop()
+        val data = buildJsonObject {
+            put("status", if (wasPlaying) "stopped" else "no_audio_playing")
+        }
+        return HandlerResult.Success(data)
+    }
+
+    fun stop() {
         currentPlayer?.let { player ->
             try {
                 if (player.isPlaying) player.stop()
@@ -137,6 +171,34 @@ class PlaySoundHandler(private val context: Context) {
             }
             currentPlayer = null
         }
+        _isPlaying.value = false
+        _hasActivePlayer.value = false
         handler.removeCallbacksAndMessages(null)
     }
+
+    /** Toggle pause/resume for the UI control. */
+    fun togglePause() {
+        currentPlayer?.let { player ->
+            try {
+                if (player.isPlaying) {
+                    player.pause()
+                    _isPlaying.value = false
+                } else {
+                    player.start()
+                    _isPlaying.value = true
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error toggling pause", e)
+            }
+        }
+    }
+
+    /** Adjust volume from UI slider (0.0 - 1.0). */
+    fun setVolume(vol: Float) {
+        val clamped = PlaySoundConfig.clampVolume(vol)
+        currentVolume = clamped
+        _volume.value = clamped
+        currentPlayer?.setVolume(clamped, clamped)
+    }
+
 }
