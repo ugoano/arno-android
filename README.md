@@ -217,3 +217,7 @@ You should see an entry with `client_type: "android"` and all 5 capabilities lis
 - [arno-cloud](https://github.com/ugoano/arno-cloud) — CC Web Bridge (server)
 - [arno-client](https://github.com/ugoano/arno-client) — CLI client (Python)
 - [Arno Client Protocol](https://github.com/ugoano/arno-cloud/blob/main/docs/ARNO_CLIENT_PROTOCOL.md) — Protocol specification
+
+## Arno Ops Skill Sync
+
+When changes affect the Android client's capabilities, protocol behaviour, or command handling, update `arno-plugin/skills/arno-ops/SKILL.md` to keep Arno's self-knowledge accurate. Skip for cosmetic or internal-only changes.
