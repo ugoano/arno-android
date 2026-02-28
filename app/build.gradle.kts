@@ -14,8 +14,8 @@ android {
         applicationId = "network.arno.android"
         minSdk = 29
         targetSdk = 35
-        versionCode = 34
-        versionName = "1.31.0"
+        versionCode = 35
+        versionName = "1.32.0"
     }
 
     buildTypes {
@@ -37,6 +37,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
     }
 }
 

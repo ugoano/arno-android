@@ -69,12 +69,15 @@ class ChatRepository(
 
     fun handleIncoming(msg: IncomingMessage) {
         flushTimedOutReadyIfNeeded()
+        Log.d(TAG, "handleIncoming type=${msg.type}")
 
         when (msg.type) {
             // Bridge sends "assistant" with message.content[] containing text and tool_use blocks
             "assistant" -> {
-                val messageObj = msg.message as? JsonObject ?: return
-                val contentArray = messageObj["content"] as? JsonArray ?: return
+                val contentArray = extractContentBlocks(msg) ?: run {
+                    Log.w(TAG, "assistant message missing content blocks")
+                    return
+                }
 
                 for (block in contentArray) {
                     val blockObj = block as? JsonObject ?: continue
@@ -133,19 +136,17 @@ class ChatRepository(
 
             // Bridge sends "user" with tool_result blocks
             "user" -> {
-                val messageObj = msg.message as? JsonObject ?: return
-                val contentArray = messageObj["content"] as? JsonArray ?: return
+                val contentArray = extractContentBlocks(msg) ?: run {
+                    Log.w(TAG, "user message missing content blocks")
+                    return
+                }
 
                 for (block in contentArray) {
                     val blockObj = block as? JsonObject ?: continue
                     val blockType = blockObj["type"]?.jsonPrimitive?.contentOrNull ?: continue
 
                     if (blockType == "tool_result") {
-                        val resultContent = blockObj["content"]
-                        val preview = when (resultContent) {
-                            is JsonPrimitive -> resultContent.contentOrNull?.take(200) ?: ""
-                            else -> resultContent?.toString()?.take(200) ?: ""
-                        }
+                        val preview = buildToolResultPreview(blockObj["content"])
                         _messages.update { it + ChatMessage(
                             role = ChatMessage.Role.TOOL,
                             content = "Result: $preview",
@@ -310,6 +311,40 @@ class ChatRepository(
                 content = text,
             )
         }
+    }
+
+    /**
+     * Accept both payload shapes observed in bridge traffic:
+     * 1) {"type":"assistant","message":{"content":[...]}}
+     * 2) {"type":"assistant","content":[...]}
+     */
+    private fun extractContentBlocks(msg: IncomingMessage): JsonArray? {
+        val messageObj = msg.message as? JsonObject
+        val fromMessage = messageObj?.get("content") as? JsonArray
+        if (fromMessage != null) return fromMessage
+
+        val topLevel = msg.content
+        if (topLevel is JsonArray) return topLevel
+
+        val topLevelObj = topLevel as? JsonObject
+        return topLevelObj?.get("content") as? JsonArray
+    }
+
+    private fun buildToolResultPreview(resultContent: JsonElement?): String {
+        val preview = when (resultContent) {
+            is JsonPrimitive -> resultContent.contentOrNull ?: ""
+            is JsonArray -> {
+                resultContent.mapNotNull { part ->
+                    when (part) {
+                        is JsonPrimitive -> part.contentOrNull
+                        is JsonObject -> part["text"]?.jsonPrimitive?.contentOrNull
+                        else -> null
+                    }
+                }.joinToString(" ").ifBlank { resultContent.toString() }
+            }
+            else -> resultContent?.toString() ?: ""
+        }
+        return preview.take(200)
     }
 
     fun clear() {

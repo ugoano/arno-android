@@ -179,9 +179,7 @@ class ArnoWebSocket(
             heartbeatJob?.cancel()
             _connectionState.value = ConnectionState.Error(t.message ?: "Unknown error")
             // Reset processing state so UI doesn't show stale spinner
-            scope.launch {
-                _incomingMessages.emit(IncomingMessage(type = "connection_lost"))
-            }
+            emitIncoming(IncomingMessage(type = "connection_lost"), "onFailure")
             scheduleReconnect()
         }
     }
@@ -215,6 +213,7 @@ class ArnoWebSocket(
     private fun handleMessage(raw: String) {
         try {
             val msg = json.decodeFromString<IncomingMessage>(raw)
+            Log.d(TAG, "Parsed incoming message type=${msg.type}")
 
             when (msg.type) {
                 "client_command" -> {
@@ -232,7 +231,7 @@ class ArnoWebSocket(
                     reconnectionReadyGate.onChatHistoryReceived()
                     // Forward to ChatRepository for rendering
                     Log.i(TAG, "Received chat_history for session: ${msg.sessionId?.take(20)}")
-                    scope.launch { _incomingMessages.emit(msg) }
+                    emitIncoming(msg, "chat_history")
                 }
                 "heartbeat_ack" -> {
                     Log.d(TAG, "Heartbeat acknowledged")
@@ -243,11 +242,27 @@ class ArnoWebSocket(
                 else -> {
                     // Forward to UI layer via shared flow
                     // Includes: assistant, content_block_delta, result, user, system, error, etc.
-                    scope.launch { _incomingMessages.emit(msg) }
+                    emitIncoming(msg, "default")
                 }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse message: ${e.message}\nRaw: ${raw.take(300)}")
+        }
+    }
+
+    private fun emitIncoming(msg: IncomingMessage, source: String) {
+        val emitted = _incomingMessages.tryEmit(msg)
+        if (emitted) {
+            Log.d(TAG, "Emitted message type=${msg.type} source=$source")
+            return
+        }
+        // Fallback: use runBlocking to preserve message ordering.
+        // This runs on OkHttp's reader thread (Dispatchers.IO) while the
+        // collector runs on viewModelScope (Main), so no deadlock risk.
+        Log.w(TAG, "SharedFlow buffer full, blocking emit type=${msg.type} source=$source")
+        runBlocking {
+            _incomingMessages.emit(msg)
+            Log.d(TAG, "Emitted after block type=${msg.type} source=$source")
         }
     }
 

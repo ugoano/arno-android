@@ -1,5 +1,6 @@
 package network.arno.android.chat
 
+import android.util.Log
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -16,6 +17,9 @@ class ChatViewModel(
     val attachmentManager: AttachmentManager,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
+    companion object {
+        private const val TAG = "ChatViewModel"
+    }
 
     val messages: StateFlow<List<ChatMessage>> = chatRepository.messages
     val isProcessing: StateFlow<Boolean> = chatRepository.isProcessing
@@ -26,6 +30,7 @@ class ChatViewModel(
     init {
         viewModelScope.launch {
             webSocket.incomingMessages.collect { msg ->
+                Log.d(TAG, "Collected incoming type=${msg.type}")
                 chatRepository.handleIncoming(msg)
             }
         }
