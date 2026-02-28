@@ -32,6 +32,9 @@ class CommandExecutor(
     private val navigateHandler = NavigateHandler()
     private val scrollHandler = ScrollHandler()
     private val appLauncherHandler = AppLauncherHandler(context)
+    private val wakeScreenHandler = WakeScreenHandler(context)
+    private val playSoundHandler = PlaySoundHandler(context)
+    private val transferFileHandler = TransferFileHandler(context)
 
     private val handlers: Map<String, (JsonObject) -> HandlerResult> = mapOf(
         "speak" to speakHandler::handle,
@@ -48,6 +51,9 @@ class CommandExecutor(
         "scroll" to scrollHandler::handle,
         "open_app" to appLauncherHandler::handleOpenApp,
         "list_apps" to appLauncherHandler::handleListApps,
+        "wake_screen" to wakeScreenHandler::handle,
+        "play_sound" to playSoundHandler::handle,
+        "transfer_file" to transferFileHandler::handle,
     )
 
     fun execute(command: ClientCommand): CommandResponse {
