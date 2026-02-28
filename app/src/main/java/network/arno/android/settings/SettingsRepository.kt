@@ -13,9 +13,12 @@ class SettingsRepository(context: Context) {
         private const val KEY_BLUETOOTH_TRIGGER = "bluetooth_trigger_enabled"
         private const val KEY_SILENCE_TIMEOUT_SCREEN = "silence_timeout_screen"
         private const val KEY_SILENCE_TIMEOUT_BT = "silence_timeout_bt"
+        private const val KEY_NOTIFICATION_BRIDGE_ENABLED = "notification_bridge_enabled"
+        private const val KEY_NOTIFICATION_WHITELIST = "notification_whitelist"
         private const val DEFAULT_SERVER_URL = "https://chat.arno.network"
         const val DEFAULT_SILENCE_TIMEOUT_SCREEN = 4000L
         const val DEFAULT_SILENCE_TIMEOUT_BT = 2000L
+        val DEFAULT_NOTIFICATION_WHITELIST = setOf("com.Slack")
     }
 
     private val prefs: SharedPreferences =
@@ -44,4 +47,13 @@ class SettingsRepository(context: Context) {
     var silenceTimeoutBt: Long
         get() = prefs.getLong(KEY_SILENCE_TIMEOUT_BT, DEFAULT_SILENCE_TIMEOUT_BT)
         set(value) = prefs.edit().putLong(KEY_SILENCE_TIMEOUT_BT, value).apply()
+
+    var notificationBridgeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_NOTIFICATION_BRIDGE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIFICATION_BRIDGE_ENABLED, value).apply()
+
+    var notificationWhitelist: Set<String>
+        get() = prefs.getStringSet(KEY_NOTIFICATION_WHITELIST, DEFAULT_NOTIFICATION_WHITELIST)
+            ?: DEFAULT_NOTIFICATION_WHITELIST
+        set(value) = prefs.edit().putStringSet(KEY_NOTIFICATION_WHITELIST, value).apply()
 }

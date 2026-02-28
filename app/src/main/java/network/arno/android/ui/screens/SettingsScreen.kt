@@ -15,6 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
+import androidx.compose.ui.platform.LocalContext
 import network.arno.android.settings.SettingsRepository
 import network.arno.android.settings.SettingsViewModel
 import network.arno.android.BuildConfig
@@ -161,6 +165,74 @@ fun SettingsScreen(
                     checkedThumbColor = JarvisCyan,
                     checkedTrackColor = JarvisCyan.copy(alpha = 0.3f),
                 ),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Notification Bridge", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val context = LocalContext.current
+        val notifBridgeEnabled by settingsViewModel.notificationBridgeEnabled.collectAsState()
+        val hasNotifPermission = remember(notifBridgeEnabled) {
+            NotificationManagerCompat.getEnabledListenerPackages(context)
+                .contains(context.packageName)
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Forward Notifications",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = JarvisText,
+                )
+                Text(
+                    text = "Capture notifications from whitelisted apps and forward to Arno",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = JarvisTextSecondary,
+                )
+            }
+            Switch(
+                checked = notifBridgeEnabled,
+                onCheckedChange = { settingsViewModel.toggleNotificationBridge() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = JarvisCyan,
+                    checkedTrackColor = JarvisCyan.copy(alpha = 0.3f),
+                ),
+            )
+        }
+
+        if (notifBridgeEnabled && !hasNotifPermission) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Grant Notification Access", color = JarvisCyan)
+            }
+            Text(
+                text = "Required: Enable Arno in Notification Access settings",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } else if (notifBridgeEnabled && hasNotifPermission) {
+            Text(
+                text = "Permission granted \u2022 Listening for: Slack",
+                style = MaterialTheme.typography.bodySmall,
+                color = JarvisCyan,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
 

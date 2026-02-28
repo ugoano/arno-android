@@ -3,6 +3,7 @@ package network.arno.android.sessions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -52,23 +53,28 @@ class SessionsViewModel(
 
         _activeSessionId.value = sessionId
 
-        // Clear chat immediately and show empty state while loading
+        // Local-first: show Room DB messages immediately
         chatRepository.loadSession(sessionId)
 
-        // Navigate to chat tab straight away
+        // Navigate to chat tab straight away — user sees cached data
         onNavigateToChat()
 
-        // Fetch history from bridge REST API (authoritative source)
-        // then reconnect WebSocket for the new session
+        // Background: fetch REST history and reconnect WebSocket concurrently
         viewModelScope.launch {
-            val history = sessionsRepository.fetchSessionHistory(sessionId)
+            // Launch WebSocket reconnect in parallel — independent of REST fetch
+            launch {
+                webSocket.disconnect()
+                webSocket.connectToSession(sessionId)
+            }
+
+            // Fetch bridge history concurrently — only updates UI if different
+            val historyDeferred = async {
+                sessionsRepository.fetchSessionHistory(sessionId)
+            }
+            val history = historyDeferred.await()
             if (history.isNotEmpty()) {
                 chatRepository.loadFromHistory(sessionId, history)
             }
-
-            // Reconnect WebSocket targeting the new session
-            webSocket.disconnect()
-            webSocket.connectToSession(sessionId)
         }
     }
 

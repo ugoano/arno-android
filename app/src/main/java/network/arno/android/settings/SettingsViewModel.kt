@@ -30,6 +30,9 @@ class SettingsViewModel(
     private val _silenceTimeoutBt = MutableStateFlow(settingsRepository.silenceTimeoutBt)
     val silenceTimeoutBt: StateFlow<Long> = _silenceTimeoutBt
 
+    private val _notificationBridgeEnabled = MutableStateFlow(settingsRepository.notificationBridgeEnabled)
+    val notificationBridgeEnabled: StateFlow<Boolean> = _notificationBridgeEnabled
+
     fun updateServerUrl(url: String) {
         settingsRepository.serverUrl = url
         _serverUrl.value = url
@@ -62,6 +65,13 @@ class SettingsViewModel(
     fun setSilenceTimeoutBt(millis: Long) {
         settingsRepository.silenceTimeoutBt = millis
         _silenceTimeoutBt.value = millis
+    }
+
+    fun toggleNotificationBridge(): Boolean {
+        val newValue = !_notificationBridgeEnabled.value
+        settingsRepository.notificationBridgeEnabled = newValue
+        _notificationBridgeEnabled.value = newValue
+        return newValue
     }
 
     fun cycleVoiceMode(): VoiceMode {

@@ -331,10 +331,17 @@ class ChatRepository(
 
     /**
      * Load messages from bridge REST API history response.
-     * Called when switching sessions — the bridge has the authoritative history.
+     * Called in background after local-first rendering — only updates UI if
+     * bridge history differs from what Room DB already showed.
      */
     fun loadFromHistory(sessionId: String, history: List<Pair<String, String>>) {
         if (sessionId != currentSessionId) return // Stale response
+
+        // Local-first: only update if bridge history differs from current display
+        if (!HistoryComparison.shouldUpdateFromHistory(_messages.value, history)) {
+            Log.i(TAG, "Bridge history matches local — skipping UI update for session $sessionId")
+            return
+        }
 
         val chatMessages = history.mapNotNull { (role, content) ->
             val chatRole = when (role) {
@@ -348,7 +355,7 @@ class ChatRepository(
         if (chatMessages.isNotEmpty()) {
             _messages.value = chatMessages
             _isProcessing.value = false
-            Log.i(TAG, "Loaded ${chatMessages.size} messages from bridge history for session $sessionId")
+            Log.i(TAG, "Updated ${chatMessages.size} messages from bridge history for session $sessionId")
         }
     }
 

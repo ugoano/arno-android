@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import network.arno.android.notification.NotificationBridgeMessage
+import network.arno.android.notification.NotificationData
 import okhttp3.*
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -123,6 +125,12 @@ class ArnoWebSocket(
         val msg = CancelMessage()
         send(json.encodeToString(msg))
         Log.i(TAG, "Cancel request sent")
+    }
+
+    fun sendNotificationBridge(data: NotificationData) {
+        val msg = NotificationBridgeMessage(data = data, clientId = clientId)
+        send(json.encodeToString(msg))
+        Log.d(TAG, "Notification bridge sent: pkg=${data.packageName}")
     }
 
     private fun send(text: String) {
