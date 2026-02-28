@@ -126,15 +126,33 @@ class AppLauncherHandler(private val context: Context) {
 
     private fun getLaunchableApps(): List<AppInfo> {
         val pm = context.packageManager
+
+        // Primary: standard launcher apps via ACTION_MAIN + CATEGORY_LAUNCHER
         val mainIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
-        return pm.queryIntentActivities(mainIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        val launcherApps = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_DEFAULT_ONLY)
             .mapNotNull { resolveInfo ->
                 val appLabel = resolveInfo.loadLabel(pm).toString()
                 val pkg = resolveInfo.activityInfo.packageName
                 AppInfo(appLabel, pkg)
             }
+
+        val knownPackages = launcherApps.map { it.packageName }.toSet()
+
+        // Fallback: find installed apps that have a launch intent but didn't
+        // appear in the launcher query (e.g. Facebook/Meta apps)
+        val fallbackApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            .filter { appInfo ->
+                appInfo.packageName !in knownPackages &&
+                    pm.getLaunchIntentForPackage(appInfo.packageName) != null
+            }
+            .map { appInfo ->
+                val label = pm.getApplicationLabel(appInfo).toString()
+                AppInfo(label, appInfo.packageName)
+            }
+
+        return (launcherApps + fallbackApps)
             .distinctBy { it.packageName }
             .sortedBy { it.name.lowercase() }
     }
