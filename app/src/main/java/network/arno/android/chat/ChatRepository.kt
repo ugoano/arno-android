@@ -232,6 +232,12 @@ class ChatRepository(
 
             // Bridge sends chat_history on reconnect/session switch
             "chat_history" -> {
+                // Validate session ID to prevent scheduled session bleed (#621)
+                val msgSessionId = msg.sessionId
+                if (msgSessionId != null && msgSessionId != currentSessionId) {
+                    Log.i(TAG, "Discarding stale chat_history for session $msgSessionId (current: $currentSessionId)")
+                    return
+                }
                 readyTimeoutJob?.cancel()
                 readyTimeoutJob = null
                 reconnectionReadyGate.onChatHistoryReceived()
