@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Arno</string>
+    <string name="accessibility_service_description">Allows Arno to read screen content, tap elements, type text, navigate, and scroll. Required for deep device control commands.</string>
 </resources>

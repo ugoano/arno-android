@@ -26,6 +26,11 @@ class CommandExecutor(
     private val notificationHandler = NotificationHandler(context)
     private val closeTabHandler = CloseTabHandler(context)
     private val deviceControlHandler = DeviceControlHandler(context)
+    private val readScreenHandler = ReadScreenHandler()
+    private val tapElementHandler = TapElementHandler()
+    private val typeTextHandler = TypeTextHandler()
+    private val navigateHandler = NavigateHandler()
+    private val scrollHandler = ScrollHandler()
 
     private val handlers: Map<String, (JsonObject) -> HandlerResult> = mapOf(
         "speak" to speakHandler::handle,
@@ -35,6 +40,11 @@ class CommandExecutor(
         "notification" to notificationHandler::handle,
         "close_tab" to closeTabHandler::handle,
         "device_control" to deviceControlHandler::handle,
+        "read_screen" to readScreenHandler::handle,
+        "tap_element" to tapElementHandler::handle,
+        "type_text" to typeTextHandler::handle,
+        "navigate" to navigateHandler::handle,
+        "scroll" to scrollHandler::handle,
     )
 
     fun execute(command: ClientCommand): CommandResponse {
