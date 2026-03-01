@@ -38,16 +38,18 @@ class SchedulesViewModel(
     }
 
     fun silentRefresh() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            try {
-                val schedules = repository.fetchSchedules()
-                _state.value = SchedulesState.Success(schedules)
-            } catch (_: Exception) {
-                // Silent refresh ignores errors - keeps current state
-            } finally {
-                _isRefreshing.value = false
-            }
+        viewModelScope.launch { doSilentRefresh() }
+    }
+
+    private suspend fun doSilentRefresh() {
+        _isRefreshing.value = true
+        try {
+            val schedules = repository.fetchSchedules()
+            _state.value = SchedulesState.Success(schedules)
+        } catch (_: Exception) {
+            // Silent refresh ignores errors - keeps current state
+        } finally {
+            _isRefreshing.value = false
         }
     }
 
@@ -56,7 +58,7 @@ class SchedulesViewModel(
         autoRefreshJob = viewModelScope.launch {
             while (true) {
                 delay(AUTO_REFRESH_INTERVAL_MS)
-                silentRefresh()
+                doSilentRefresh()
             }
         }
     }

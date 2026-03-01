@@ -278,6 +278,11 @@ class ChatRepository(
 
             // Replay chunks from a reconnection or session switch
             "replay" -> {
+                val msgSessionId = msg.sessionId
+                if (msgSessionId != null && msgSessionId != currentSessionId) {
+                    Log.i(TAG, "Discarding stale replay for session $msgSessionId (current: $currentSessionId)")
+                    return
+                }
                 val chunks = msg.chunks
                 if (chunks.isNullOrEmpty()) {
                     Log.d(TAG, "Replay message with no chunks, ignoring")
@@ -302,6 +307,11 @@ class ChatRepository(
 
             // Task progress update (running task with full output)
             "task_progress" -> {
+                val msgSessionId = msg.sessionId
+                if (msgSessionId != null && msgSessionId != currentSessionId) {
+                    Log.i(TAG, "Discarding stale task_progress for session $msgSessionId (current: $currentSessionId)")
+                    return
+                }
                 val output = msg.output
                 if (output.isNullOrBlank()) {
                     Log.d(TAG, "Task progress with no output, ignoring")
