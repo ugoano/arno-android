@@ -75,6 +75,9 @@ data class IncomingMessage(
     val summary: JsonObject? = null,
     val status: String? = null,
     val subtype: String? = null,
+    val chunks: List<String>? = null,
+    val output: String? = null,
+    @SerialName("is_complete") val isComplete: Boolean? = null,
 )
 
 @Serializable

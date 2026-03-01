@@ -276,10 +276,53 @@ class ChatRepository(
                 Log.i(TAG, "Connection lost — reset processing state")
             }
 
+            // Replay chunks from a reconnection or session switch
+            "replay" -> {
+                val chunks = msg.chunks
+                if (chunks.isNullOrEmpty()) {
+                    Log.d(TAG, "Replay message with no chunks, ignoring")
+                    return
+                }
+                val combined = chunks.joinToString("")
+                if (combined.isNotBlank()) {
+                    _messages.update { messages ->
+                        // Replace last streaming assistant message or append
+                        val last = messages.lastOrNull()
+                        if (last?.role == ChatMessage.Role.ASSISTANT && last.isStreaming) {
+                            messages.dropLast(1) + last.copy(content = combined, isStreaming = false)
+                        } else {
+                            messages + ChatMessage(role = ChatMessage.Role.ASSISTANT, content = combined)
+                        }
+                    }
+                }
+                val isComplete = msg.isComplete ?: (msg.status != "running")
+                _isProcessing.value = !isComplete
+                Log.i(TAG, "Replay: ${chunks.size} chunks, complete=$isComplete")
+            }
+
+            // Task progress update (running task with full output)
+            "task_progress" -> {
+                val output = msg.output
+                if (output.isNullOrBlank()) {
+                    Log.d(TAG, "Task progress with no output, ignoring")
+                    return
+                }
+                _messages.update { messages ->
+                    val last = messages.lastOrNull()
+                    if (last?.role == ChatMessage.Role.ASSISTANT && last.isStreaming) {
+                        messages.dropLast(1) + last.copy(content = output, isStreaming = false)
+                    } else {
+                        messages + ChatMessage(role = ChatMessage.Role.ASSISTANT, content = output)
+                    }
+                }
+                _isProcessing.value = (msg.status == "running")
+                Log.i(TAG, "Task progress: ${output.length} chars, status=${msg.status}")
+            }
+
             // Ignore internal bridge messages that don't need UI display
             "task_created", "task_completed", "task_failed",
             "task_queued", "queue_task_started", "queued_task_cancelled",
-            "task_progress", "replay", "system_message",
+            "system_message",
             "init", "raw", "auth_error", "queue_full", "cancel_queued_failed" -> {
                 Log.d(TAG, "Ignoring bridge message type: ${msg.type}")
             }

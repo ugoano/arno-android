@@ -24,6 +24,9 @@ class SessionsViewModel(
     private val _activeSessionId = MutableStateFlow<String?>(null)
     val activeSessionId: StateFlow<String?> = _activeSessionId
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     init {
         _activeSessionId.value = webSocket.currentSessionId
         refresh()
@@ -33,6 +36,18 @@ class SessionsViewModel(
         viewModelScope.launch {
             sessionsRepository.fetchSessions()
             _activeSessionId.value = webSocket.currentSessionId
+        }
+    }
+
+    fun pullToRefresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                sessionsRepository.fetchSessions()
+                _activeSessionId.value = webSocket.currentSessionId
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 

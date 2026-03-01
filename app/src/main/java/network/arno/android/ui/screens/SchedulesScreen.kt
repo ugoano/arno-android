@@ -18,10 +18,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,21 +44,29 @@ import network.arno.android.ui.theme.JarvisTextSecondary
 import java.time.Duration
 import java.time.Instant
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchedulesScreen(viewModel: SchedulesViewModel) {
     val state by viewModel.state.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     when (val current = state) {
         is SchedulesState.Loading -> LoadingView()
         is SchedulesState.Error -> ErrorView(message = current.message, onRetry = viewModel::refresh)
         is SchedulesState.Success -> {
-            if (current.schedules.isEmpty()) {
-                EmptySchedulesView()
-            } else {
-                SchedulesListView(
-                    schedules = current.schedules,
-                    onToggle = { id, enabled -> viewModel.toggle(id, enabled) },
-                )
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.silentRefresh() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (current.schedules.isEmpty()) {
+                    EmptySchedulesView()
+                } else {
+                    SchedulesListView(
+                        schedules = current.schedules,
+                        onToggle = { id, enabled -> viewModel.toggle(id, enabled) },
+                    )
+                }
             }
         }
     }

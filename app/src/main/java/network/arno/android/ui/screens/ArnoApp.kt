@@ -131,6 +131,9 @@ fun ArnoApp(
     LaunchedEffect(currentRoute) {
         if (currentRoute == TopLevelRoute.Schedules.route) {
             schedulesViewModel.refresh()
+            schedulesViewModel.startAutoRefresh()
+        } else {
+            schedulesViewModel.stopAutoRefresh()
         }
     }
 
