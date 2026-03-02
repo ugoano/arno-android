@@ -28,7 +28,7 @@ class VoiceInputManager(
     companion object {
         private const val TAG = "VoiceInputManager"
         private const val PTT_MAX_RETRIES = 2
-        private const val START_LISTEN_DELAY_MS = 200L
+        private const val RETRY_DELAY_MS = 150L
         const val DEFAULT_SILENCE_TIMEOUT_MS = 4000L
         private val PTT_RETRYABLE_ERRORS = setOf(
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
@@ -44,8 +44,17 @@ class VoiceInputManager(
     private var pttRetryCount = 0
     private var currentMode: VoiceMode = VoiceMode.PUSH_TO_TALK
 
-    /** True from the moment start() is called until recognition finishes or errors out. */
+    /**
+     * True from the moment start() is called until recognition finishes or errors out.
+     * Covers the full lifecycle: start -> onReadyForSpeech -> onResults/onError.
+     */
     private var isActive = false
+
+    /**
+     * Monotonic generation counter. Incremented on every start(). Delayed callbacks
+     * and retries check this to avoid acting on behalf of a cancelled session.
+     */
+    private var startGeneration = 0L
 
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening
@@ -62,8 +71,23 @@ class VoiceInputManager(
     /** When true, the next recognition result is auto-sent (single-capture after bare wake word). */
     private var pendingSingleCapture = false
 
-    private fun createRecognizer(): SpeechRecognizer {
+    /**
+     * Get or create a SpeechRecognizer. Reuses the warmed-up instance when available
+     * instead of destroying and recreating it every time (avoids cold-start latency).
+     */
+    private fun ensureRecognizer(): SpeechRecognizer {
+        val existing = speechRecognizer
+        if (existing != null) return existing
+        warmupState.reset()
+        return SpeechRecognizer.createSpeechRecognizer(context).also {
+            speechRecognizer = it
+        }
+    }
+
+    /** Destroy the current recognizer and create a fresh one. Used for retries. */
+    private fun recreateRecognizer(): SpeechRecognizer {
         speechRecognizer?.destroy()
+        speechRecognizer = null
         warmupState.reset()
         return SpeechRecognizer.createSpeechRecognizer(context).also {
             speechRecognizer = it
@@ -130,10 +154,11 @@ class VoiceInputManager(
 
         override fun onEndOfSpeech() {
             _isListening.value = false
-            // For PTT, mark inactive immediately so toggle() won't see stale isActive
-            if (currentMode == VoiceMode.PUSH_TO_TALK) {
-                isActive = false
-            }
+            // Do NOT set isActive = false here. onEndOfSpeech fires BEFORE
+            // onResults/onError. Setting isActive false here creates a window
+            // where toggle() thinks recognition is idle, starts a new session,
+            // and the createRecognizer() destroys the recognizer before it can
+            // deliver results. Wait for onResults/onError instead.
         }
 
         override fun onError(error: Int) {
@@ -150,8 +175,11 @@ class VoiceInputManager(
                 && error in PTT_RETRYABLE_ERRORS) {
                 // Retry for transient errors (e.g. recogniser busy from rapid destroy/create)
                 pttRetryCount++
-                Log.i(TAG, "PTT transient error ($error), retrying (attempt ${pttRetryCount + 1})")
-                mainHandler.postDelayed({ retryPushToTalk() }, 200)
+                val gen = startGeneration
+                Log.i(TAG, "PTT transient error ($error), retrying (attempt ${pttRetryCount + 1}, gen=$gen)")
+                mainHandler.postDelayed({
+                    if (startGeneration == gen) retryPushToTalk()
+                }, RETRY_DELAY_MS)
             } else {
                 isActive = false
             }
@@ -225,7 +253,8 @@ class VoiceInputManager(
     private fun restartListening() {
         if (!shouldRestart) return
         try {
-            val recognizer = createRecognizer()
+            // For continuous restarts, recreate to avoid stale recognizer state
+            val recognizer = recreateRecognizer()
             recognizer.setRecognitionListener(recognitionListener)
             recognizer.startListening(buildIntent())
         } catch (e: Exception) {
@@ -236,13 +265,15 @@ class VoiceInputManager(
     }
 
     private fun retryPushToTalk() {
-        if (currentMode != VoiceMode.PUSH_TO_TALK) return
+        if (currentMode != VoiceMode.PUSH_TO_TALK || !isActive) return
         try {
-            val recognizer = createRecognizer()
+            // Retry needs a fresh recognizer since the old one errored
+            val recognizer = recreateRecognizer()
             recognizer.setRecognitionListener(recognitionListener)
             recognizer.startListening(buildIntent())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to retry PTT", e)
+            isActive = false
         }
     }
 
@@ -257,6 +288,10 @@ class VoiceInputManager(
             return
         }
 
+        // Bump generation to invalidate any pending retries from a previous session
+        startGeneration++
+        val gen = startGeneration
+
         currentMode = mode
         shouldRestart = mode != VoiceMode.PUSH_TO_TALK
         pendingSingleCapture = false
@@ -267,20 +302,21 @@ class VoiceInputManager(
 
         audioFeedback.play(AudioFeedback.Tone.LISTEN_START)
 
-        mainHandler.postDelayed({
-            if (!isActive || currentMode != mode) return@postDelayed
-            try {
-                val recognizer = createRecognizer()
-                recognizer.setRecognitionListener(recognitionListener)
-                recognizer.startListening(buildIntent())
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start listening", e)
-                isActive = false
-                shouldRestart = false
-                _isContinuousActive.value = false
-                _isListening.value = false
-            }
-        }, START_LISTEN_DELAY_MS)
+        // Cancel any in-flight recognition on the existing recognizer before reuse
+        speechRecognizer?.cancel()
+
+        try {
+            val recognizer = ensureRecognizer()
+            recognizer.setRecognitionListener(recognitionListener)
+            recognizer.startListening(buildIntent())
+            Log.d(TAG, "startListening called synchronously (mode=$mode, gen=$gen)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start listening", e)
+            isActive = false
+            shouldRestart = false
+            _isContinuousActive.value = false
+            _isListening.value = false
+        }
     }
 
     /** Stop all listening. */
@@ -289,6 +325,8 @@ class VoiceInputManager(
         if (_isListening.value || _isContinuousActive.value) {
             audioFeedback.play(AudioFeedback.Tone.LISTEN_STOP)
         }
+        // Bump generation to cancel any pending retry callbacks
+        startGeneration++
         shouldRestart = false
         pendingSingleCapture = false
         isActive = false
@@ -305,13 +343,12 @@ class VoiceInputManager(
 
     /** Toggle: if currently active in given mode, stop. Otherwise start. */
     fun toggle(mode: VoiceMode) {
-        // For PTT: if recogniser reports not listening and not in a continuous mode,
-        // treat as inactive regardless of isActive flag (prevents stale state requiring double-tap)
-        val effectivelyActive = if (mode == VoiceMode.PUSH_TO_TALK) {
-            _isListening.value
-        } else {
-            isActive || _isContinuousActive.value || _isListening.value
-        }
+        // isActive now reliably tracks the full lifecycle (start -> onResults/onError)
+        // because we no longer set it false prematurely in onEndOfSpeech.
+        // For continuous modes, also check isContinuousActive.
+        val effectivelyActive = isActive || _isContinuousActive.value
+        Log.d(TAG, "toggle(mode=$mode): isActive=$isActive, isListening=${_isListening.value}, " +
+            "isContinuous=${_isContinuousActive.value} -> effectivelyActive=$effectivelyActive")
         if (effectivelyActive) {
             stop()
         } else {
