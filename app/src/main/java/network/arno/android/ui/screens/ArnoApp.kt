@@ -11,9 +11,11 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Schedule
@@ -61,6 +63,7 @@ private enum class TopLevelRoute(
     Sessions("sessions", "Sessions", Icons.Filled.History, Icons.Outlined.History),
     Tasks("tasks", "Tasks", Icons.Filled.CheckCircle, Icons.Outlined.CheckCircle),
     Schedules("schedules", "Schedules", Icons.Filled.Schedule, Icons.Outlined.Schedule),
+    Playground("playground", "Playground", Icons.Filled.Apps, Icons.Outlined.Apps),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -286,6 +289,9 @@ fun ArnoApp(
             }
             composable("schedules") {
                 SchedulesScreen(viewModel = schedulesViewModel)
+            }
+            composable("playground") {
+                PlaygroundScreen()
             }
             composable("settings") {
                 SettingsScreen(
